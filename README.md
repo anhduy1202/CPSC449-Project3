@@ -1,1 +1,1 @@
-# backend-project2
+# CPSC 449 Project 2

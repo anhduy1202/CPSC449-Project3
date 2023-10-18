@@ -2,7 +2,7 @@ import contextlib
 import sqlite3
 
 from fastapi import Depends, HTTPException, APIRouter, status
-from schemas import Class
+from enrollment_service.database.schemas import Class
 
 router = APIRouter()
 dropped = []
