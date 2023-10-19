@@ -44,7 +44,7 @@ def verify_user(username:str , password:str,db: sqlite3.Connection = Depends(get
     # Fetch student data from db
     cursor.execute(
         """
-        SELECT password FROM users
+        SELECT * FROM users
         WHERE name = ?
         """, (username,)
     )
@@ -52,10 +52,11 @@ def verify_user(username:str , password:str,db: sqlite3.Connection = Depends(get
 
     if not user_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Username not found")
-
-    flag = utils.verify_password(password , user_data[0])
+    
+    flag = utils.verify_password(password , user_data['password'])
 
     if(flag):
-        return {"status":"you are sucessfully logged in"}
+            return {"status":"Verification successful",
+                    "claim":utils.generate_claims(username,user_data['uid'],user_data['role_id'])}
     else:
         return{"status":"invalid login credentials "}
