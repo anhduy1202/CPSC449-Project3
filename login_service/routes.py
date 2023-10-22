@@ -2,7 +2,7 @@ import contextlib
 import sqlite3
 
 from fastapi import Depends, HTTPException, APIRouter, status
-from login_service.database.schemas import Users
+from login_service.database.schemas import Users,Userlogin
 from Utility import utils
 
 router = APIRouter()
@@ -39,24 +39,23 @@ def register_user(user_data : Users,db: sqlite3.Connection = Depends(get_db)):
         )
 
 @router.post("/login")
-def verify_user(username:str , password:str,db: sqlite3.Connection = Depends(get_db)):
+def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     # Fetch student data from db
     cursor.execute(
         """
         SELECT * FROM users
         WHERE name = ?
-        """, (username,)
+        """, (login_data.username,)
     )
     user_data = cursor.fetchone()
 
     if not user_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Username not found")
     
-    flag = utils.verify_password(password , user_data['password'])
+    flag = utils.verify_password(login_data.password , user_data['password'])
 
     if(flag):
-            return {"status":"Verification successful",
-                    "claim":utils.generate_claims(username,user_data['uid'],user_data['role_id'])}
+            return utils.generate_claims(login_data.username,user_data['uid'],user_data['role_id'])
     else:
         return{"status":"invalid login credentials "}

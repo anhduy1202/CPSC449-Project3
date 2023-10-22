@@ -6,6 +6,8 @@ import sys
 import json
 import datetime
 
+from jwcrypto import jwk
+
 ALGORITHM = "pbkdf2_sha256"
 
 
@@ -54,4 +56,17 @@ def generate_claims(username, user_id, roles):
     }
 
     output = json.dumps(token, indent=4)
-    return output   
+    claim_json = json.loads(output)
+    #print (claim_json)
+    return claim_json   
+
+
+def generate_keys(key_ids):
+    keys = [jwk.JWK.generate(kid=key_id, kty="RSA", alg="RS256") for key_id in key_ids]
+    exported_keys = [
+        key.export(private_key=private) for key in keys for private in [False, True]
+    ]
+    keys_as_json = [json.loads(exported_key) for exported_key in exported_keys]
+    jwks = {"keys": keys_as_json}
+    output = json.dumps(jwks, indent=4)
+    print(output)
