@@ -42,12 +42,22 @@ def register_user(user_data : Users,db: sqlite3.Connection = Depends(get_db)):
 def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     # Fetch student data from db
+    # cursor.execute(
+    #     """
+    #     SELECT * FROM users
+    #     WHERE name = ?
+    #     """, (login_data.username,)
+    # )
+
     cursor.execute(
         """
-        SELECT * FROM users
-        WHERE name = ?
+        SELECT u.*, r.name AS role_name
+        FROM users AS u
+        INNER JOIN roles AS r ON u.role_id = r.role_id
+        WHERE u.name = ?
         """, (login_data.username,)
     )
+
     user_data = cursor.fetchone()
 
     if not user_data:
@@ -56,6 +66,6 @@ def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db)):
     flag = utils.verify_password(login_data.password , user_data['password'])
 
     if(flag):
-            return utils.generate_claims(login_data.username,user_data['uid'],user_data['role_id'])
+            return utils.generate_claims(login_data.username,user_data['uid'],user_data['role_name'])
     else:
         return{"status":"invalid login credentials "}

@@ -57,7 +57,7 @@ def generate_claims(username, user_id, roles):
 
     output = json.dumps(token, indent=4)
     claim_json = json.loads(output)
-    #print (claim_json)
+    print (claim_json)
     return claim_json   
 
 
