@@ -1,0 +1,44 @@
+{
+    "$schema": "https://www.krakend.io/schema/v2.4/krakend.json",
+    "version": 3,
+    "endpoints": [
+        {
+        "endpoint": "/login",
+        "method": "POST",      
+        "backend": [
+          {
+            "url_pattern": "/login",
+            "host": ["http://localhost:5100"]
+          }
+        ],
+        "extra_config": {
+          "auth/signer": {
+            "alg": "RS256",
+            "kid": "access-token-key",
+            "keys_to_sign": ["access_token", "refresh_token"],
+            "jwk_local_path": "./login_service/symmetric.json",
+            "disable_jwk_security": true
+          }
+      }
+},{
+  
+    "endpoint": "/students/{student_id}/classes",
+    "method": "GET",      
+    "backend": [
+      {
+        "url_pattern": "/students/{student_id}/classes",
+        "host": ["http://localhost:5000"]
+      }
+    ],
+    "extra_config": {
+      "auth/validator": {
+        "alg": "RS256",
+        "roles": ["admin","User"],
+        "jwk_local_path": "./login_service/symmetric.json",
+        "disable_jwk_security": true,
+        "operation_debug":true,
+        "key_identify_strategy":"kid"
+    }
+  }
+}]
+}

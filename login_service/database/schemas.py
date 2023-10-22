@@ -13,4 +13,8 @@ class Roles(BaseModel):
 class User_Roles(BaseModel):
     uid: int
     role_id: int
+
+class Userlogin(BaseModel):
+    username:str
+    password:str
     
