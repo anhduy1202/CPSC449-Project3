@@ -1,0 +1,16 @@
+fuse:
+  dir: "./enrollment_service/database/var/primary/fuse"
+  allow-other: false
+  debug: false
+data:
+  dir: "./enrollment_service/database/var/primary/data"
+  compress: true
+  retention: "10m"
+  retention-monitor-interval: "1m"
+http:
+  addr: ":20204"
+lease:
+  type: "static"
+  advertise-url: "http://127.0.0.1:20204"
+  candidate: true
+exec: "uvicorn enrollment_service.enrollment_service:app --host 0.0.0.0 --port $PORT --reload" 
