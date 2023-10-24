@@ -3,7 +3,7 @@
     "version": 3,
     "endpoints": [
         {
-        "endpoint": "/login",
+        "endpoint": "/api/login",
         "method": "POST",      
         "backend": [
           {
@@ -16,13 +16,13 @@
             "alg": "RS256",
             "kid": "access-token-key",
             "keys_to_sign": ["access_token", "refresh_token"],
-            "jwk_local_path": "./login_service/symmetric.json",
+            "jwk_local_path": "./login_service/private.json",
             "disable_jwk_security": true
           }
       }
 },{
-  
-    "endpoint": "/students/{student_id}/classes",
+    
+    "endpoint": "/api/students/{student_id}/classes",
     "method": "GET",      
     "backend": [
       {
@@ -33,11 +33,11 @@
     "extra_config": {
       "auth/validator": {
         "alg": "RS256",
-        "roles": ["admin","User"],
-        "jwk_local_path": "./login_service/symmetric.json",
+        "roles_key": "roles",
+        "roles": ["user"],
+        "jwk_local_path": "./login_service/public.json",
         "disable_jwk_security": true,
-        "operation_debug":true,
-        "key_identify_strategy":"kid"
+        "operation_debug":true
     }
   }
 }]
