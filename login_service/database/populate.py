@@ -19,7 +19,7 @@ cursor.execute('''
         uid INTEGER PRIMARY KEY,
         name TEXT,
         password TEXT,
-        role_id INTEGER
+        roles TEXT
     )
 ''')
 
@@ -36,10 +36,10 @@ def add_data():
 
     # Add users
     user_data = [
-        (1, "John", "password123", 1),
-        (2, "Alice", "secret456", 2),
+        (1, "John", "password123", "admin"),
+        (2, "Alice", "secret456", "user"),
     ]
-    cursor.executemany('INSERT INTO users (uid, name, password, role_id) VALUES (?, ?, ?, ?)', user_data)
+    cursor.executemany('INSERT INTO users (uid, name, password, roles) VALUES (?, ?, ?, ?)', user_data)
 
     # Commit the changes to the database
     conn.commit()

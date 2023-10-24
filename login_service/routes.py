@@ -19,15 +19,16 @@ def get_db():
 @router.post("/register")
 def register_user(user_data : Users,db: sqlite3.Connection = Depends(get_db)):
     user_data.password =  utils.hash_password(user_data.password)
+    roles_str = ",".join(user_data.roles)
     try:
         db.execute(
             """
-            INSERT INTO users (uid, name, password, role_id) VALUES (?, ?, ?, ?)
+            INSERT INTO users (uid, name, password, roles) VALUES (?, ?, ?, ?)
             """, (
                 user_data.uid,
                 user_data.name,
                 user_data.password,
-                user_data.role_id
+                roles_str
             )
         )
         db.commit()
@@ -42,21 +43,21 @@ def register_user(user_data : Users,db: sqlite3.Connection = Depends(get_db)):
 def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     # Fetch student data from db
-    # cursor.execute(
-    #     """
-    #     SELECT * FROM users
-    #     WHERE name = ?
-    #     """, (login_data.username,)
-    # )
-
     cursor.execute(
         """
-        SELECT u.*, r.name AS role_name
-        FROM users AS u
-        INNER JOIN roles AS r ON u.role_id = r.role_id
-        WHERE u.name = ?
+        SELECT * FROM users
+        WHERE name = ?
         """, (login_data.username,)
     )
+
+    # cursor.execute(
+    #     """
+    #     SELECT u.*, r.name AS role_name
+    #     FROM users AS u
+    #     INNER JOIN roles AS r ON u.role_id = r.role_id
+    #     WHERE u.name = ?
+    #     """, (login_data.username,)
+    # )
 
     user_data = cursor.fetchone()
 
@@ -66,6 +67,6 @@ def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db)):
     flag = utils.verify_password(login_data.password , user_data['password'])
 
     if(flag):
-            return utils.generate_claims(login_data.username,user_data['uid'],user_data['role_name'])
+            return utils.generate_claims(login_data.username,user_data['uid'],user_data['roles'])
     else:
         return{"status":"invalid login credentials "}

@@ -1,10 +1,11 @@
+from typing import List
 from pydantic import BaseModel
 
 class Users(BaseModel):
     uid: int
     name: str
     password: str
-    role_id: str
+    roles: List
 
 class Roles(BaseModel):
     role_id: int
