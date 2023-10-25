@@ -8,6 +8,7 @@ from Utility import utils
 router = APIRouter()
 
 database = "mydatabase.db"
+ALLOWED_ROLES = {"student", "professor", "registrar"}
 
 # Connect to the database
 def get_db():
@@ -18,8 +19,25 @@ def get_db():
 
 @router.post("/register")
 def register_user(user_data : Users,db: sqlite3.Connection = Depends(get_db)):
-    user_data.password =  utils.hash_password(user_data.password)
+   
+     # Check if the roles are valid
+    invalid_roles = set(user_data.roles) - ALLOWED_ROLES
+    if invalid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Invalid roles",
+                "invalid_roles": list(invalid_roles),
+                "message": "Roles must be 'student', 'professor', or 'registrar'.",
+            },
+        )
+
+
+
+
     roles_str = ",".join(user_data.roles)
+    user_data.password =  utils.hash_password(user_data.password)
+
     try:
         db.execute(
             """
@@ -66,7 +84,9 @@ def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db)):
     
     flag = utils.verify_password(login_data.password , user_data['password'])
 
+    
+
     if(flag):
-            return utils.generate_claims(login_data.username,user_data['uid'],user_data['roles'])
+            return utils.generate_claims(login_data.username,user_data['uid'],user_data['roles'].split(','))
     else:
         return{"status":"invalid login credentials "}
