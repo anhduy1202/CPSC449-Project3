@@ -36,8 +36,8 @@ def add_data():
 
     # Add users
     user_data = [
-        (1, "John", "password123", "admin"),
-        (2, "Alice", "secret456", "user"),
+        (1, "John", "password123", "registrar"),
+        (2, "Alice", "secret456", "professor,student"),
     ]
     cursor.executemany('INSERT INTO users (uid, name, password, roles) VALUES (?, ?, ?, ?)', user_data)
 
