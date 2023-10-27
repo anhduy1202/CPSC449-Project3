@@ -1,7 +1,7 @@
 fuse:
   dir: "login_service/database/var/primary/fuse"
   allow-other: false
-  debug: true
+  debug: false
 data:
   dir: "login_service/database/var/primary/data"
   compress: true
