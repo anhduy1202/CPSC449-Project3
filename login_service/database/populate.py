@@ -2,8 +2,12 @@ import sqlite3
 import os
 from schemas import Users,User_Roles
 
+# Deletes db if it already exists
+if os.path.exists("login_service/database/var/primary/fuse/database.db"):
+    os.remove("login_service/database/var/primary/fuse/database.db")
+
 # Connect to the SQLite database
-conn = sqlite3.connect('mydatabase.db')
+conn = sqlite3.connect('login_service/database/var/primary/fuse/database.db')
 cursor = conn.cursor()
 
 # Create tables in the database

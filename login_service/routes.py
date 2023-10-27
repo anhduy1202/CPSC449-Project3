@@ -7,12 +7,12 @@ from Utility import utils
 
 router = APIRouter()
 
-database = "mydatabase.db"
+database = "/login_service/database/var/primary/fuse/database.db"
 ALLOWED_ROLES = {"student", "professor", "registrar"}
 
 # Connect to the database
 def get_db():
-    with contextlib.closing(sqlite3.connect('login_service/database/mydatabase.db')) as db:
+    with contextlib.closing(sqlite3.connect(database, check_same_thread=False)) as db:
         db.row_factory = sqlite3.Row
         yield db
 

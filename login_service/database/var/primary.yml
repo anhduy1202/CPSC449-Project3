@@ -1,9 +1,9 @@
 fuse:
-  dir: "./login_service/database/var/primary/fuse"
+  dir: "login_service/database/var/primary/fuse"
   allow-other: false
-  debug: false
+  debug: true
 data:
-  dir: "./login_service/database/var/primary/data"
+  dir: "login_service/database/var/primary/data"
   compress: true
   retention: "10m"
   retention-monitor-interval: "1m"
@@ -13,4 +13,4 @@ lease:
   type: "static"
   advertise-url: "http://127.0.0.1:20202"
   candidate: true
-exec: "uvicorn login_service.login_service:app --host 0.0.0.0 --port $PORT --reload" 
+exec: "uvicorn login_service.login_service:app --host 0.0.0.0 --port $PORT --reload"
