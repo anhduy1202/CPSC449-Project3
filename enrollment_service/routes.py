@@ -1,7 +1,7 @@
 import contextlib
 import sqlite3
 
-from fastapi import Depends, HTTPException, APIRouter, status
+from fastapi import Depends, HTTPException, APIRouter, Header, status
 from enrollment_service.database.schemas import Class
 
 router = APIRouter()
@@ -177,8 +177,8 @@ def enroll_student_in_class(student_id: int, class_id: int, db: sqlite3.Connecti
 
 
 # Have a student drop a class they're enrolled in
-@router.put("/students/{student_id}/classes/{class_id}/drop/", tags=['Student'])
-def drop_student_from_class(student_id: int, class_id: int, db: sqlite3.Connection = Depends(get_db)):
+@router.delete("/students/classes/{class_id}", tags=['Students drop their own classes'])
+def drop_student_from_class(class_id: int, student_id: int = Header(None, alias="x-cwid"), db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
 
     # check if exist
@@ -201,7 +201,7 @@ def drop_student_from_class(student_id: int, class_id: int, db: sqlite3.Connecti
                     AND enrollment.placement > class.max_enroll""", (student_id,))
     waitlist_data = cursor.fetchone()
     
-    if not enrollment_data or not waitlist_data:
+    if not enrollment_data and not waitlist_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is not enrolled in the class")
 
     # remove student from class
