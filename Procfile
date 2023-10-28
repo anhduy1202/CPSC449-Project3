@@ -1,5 +1,5 @@
 
-enrollment_service: /home/sanjyot/.venv/bin/uvicorn enrollment_service.enrollment_service:app --port $PORT --reload
+enrollment_service: uvicorn enrollment_service.enrollment_service:app --port $PORT --reload
 login_service_primary: ./bin/litefs mount -config etc/primary.yml
 login_secondary: ./bin/litefs mount -config etc/secondary.yml
 login_tertiary: ./bin/litefs mount -config etc/tertiary.yml

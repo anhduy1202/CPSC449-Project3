@@ -5,11 +5,11 @@ fuse:
 
   # Enable mounting of the file system by non-root users.
   # You must enable the 'user_allow_other' option in /etc/fuse.conf as well.
-  allow-other: true
+  allow-other: false
 
   # The debug flag enables debug logging of all FUSE API calls.
   # This will produce a lot of logging. Not for general use.
-  debug: false
+  # debug: false
 
 
 data:
@@ -20,10 +20,10 @@ data:
   compress: true
 
   # Duration to keep LTX files. Latest LTX file is always kept.
-  retention: "10m"
+  # retention: "10m"
 
   # Frequency with which to check for LTX files to delete.
-  retention-monitor-interval: "1m"
+  # retention-monitor-interval: "1m"
 
 http:
   # Specifies the bind address of the HTTP API server.
@@ -45,9 +45,3 @@ lease:
   # "static" leasing, this should be set to true on the primary
   # and false on the replicas.
   candidate: false
-
-  
-
-
-
-  
