@@ -2,7 +2,9 @@
 Create a new user authentication service with read replication, then use it to implement authentication and load balancing through an API gateway.
 
 ## Installation
-run `sh install.sh`.
+run `sh ./bin/install.sh`.
 
-## Start the servers
-run `foreman start`.
+## How to run
+- run `sh run.sh` to start the services
+- run `sh ./bin/create-user-db.sh` to create user database
+- run `sh ./bin/create-enrollment-db.sh` to create enrollment service database

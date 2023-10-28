@@ -29,7 +29,7 @@ sudo apt install -y httpie
 # Install pip for Python 3
 sudo apt install -y python3-pip
 
-# Install FastAPI
+# Install required libaries for the project
 pip3 install -r requirements.txt
 
 # Print 'Installation Successful'
