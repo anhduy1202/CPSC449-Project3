@@ -1,4 +1,5 @@
 import contextlib
+import itertools
 import sqlite3
 
 from fastapi import Depends, HTTPException, APIRouter, status
@@ -7,15 +8,40 @@ from Utility import utils
 
 router = APIRouter()
 
-database = "mydatabase.db"
+database = "./var/primary/fuse/database.db"
+database_reps = itertools.cycle(["./var/secondary/fuse/database.db", "./var/tertiary/fuse/database.db"])
 ALLOWED_ROLES = {"student", "professor", "registrar"}
 
 # Connect to the database
 def get_db():
-    with contextlib.closing(sqlite3.connect('login_service/database/mydatabase.db')) as db:
+    with contextlib.closing(sqlite3.connect(database, check_same_thread=False)) as db:
         db.row_factory = sqlite3.Row
         yield db
 
+def get_db_replicas():
+
+    curr_db = next(database_reps)
+
+    try:
+        connection = sqlite3.connect(curr_db, check_same_thread=False)
+    except:
+        curr_db = next(database_reps)
+        connection = sqlite3.connect(curr_db, check_same_thread=False)
+        try:
+            connection = sqlite3.connect(curr_db, check_same_thread=False)
+        except:
+            raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Databases Unavailable",
+            }
+        )
+
+    print(curr_db)
+
+    with contextlib.closing(connection) as db:
+            db.row_factory = sqlite3.Row
+            yield db
 
 @router.post("/register")
 def register_user(user_data : Users,db: sqlite3.Connection = Depends(get_db)):
@@ -58,7 +84,7 @@ def register_user(user_data : Users,db: sqlite3.Connection = Depends(get_db)):
         )
 
 @router.post("/login")
-def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db)):
+def verify_user(login_data:Userlogin,db: sqlite3.Connection = Depends(get_db_replicas)):
     cursor = db.cursor()
     # Fetch student data from db
     cursor.execute(

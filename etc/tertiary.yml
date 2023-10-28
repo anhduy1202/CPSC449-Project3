@@ -1,0 +1,47 @@
+fuse:
+  # Required. This is the mount directory that applications will
+  # use to access their SQLite databases.
+  dir: "./var/tertiary/fuse"
+
+  # Enable mounting of the file system by non-root users.
+  # You must enable the 'user_allow_other' option in /etc/fuse.conf as well.
+  allow-other: false
+
+  # The debug flag enables debug logging of all FUSE API calls.
+  # This will produce a lot of logging. Not for general use.
+  # debug: true
+
+data:
+  # Path to internal data storage.
+  dir: "./var/tertiary/data"
+
+  # If true, compresses LTX files using LZ4 compression. Enabled by default.
+  compress: true
+
+  # Duration to keep LTX files. Latest LTX file is always kept.
+  # retention: "10m"
+
+  # Frequency with which to check for LTX files to delete.
+  # retention-monitor-interval: "1m"
+
+
+http:
+  # Specifies the bind address of the HTTP API server.
+  addr: ":20204"
+
+lease:
+  # Required. Must be either "consul" or "static".
+  type: "static"
+
+  # Required. The URL for this node's LiteFS API.
+  # Should match HTTP port.
+  advertise-url: "http://localhost:20202"
+
+  # Sets the hostname that other nodes will use to reference this
+  # node. Automatically assigned based on hostname(1) if not set.
+  hostname: "localhost"
+
+  # Specifies whether the node can become the primary. If using
+  # "static" leasing, this should be set to true on the primary
+  # and false on the replicas.
+  candidate: false
