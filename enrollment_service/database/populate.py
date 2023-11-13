@@ -441,6 +441,37 @@ def populate_database():
         """
     )
 
+    # indexing
+    cursor.execute(
+        """
+        CREATE INDEX class_idx ON class(current_enroll)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX enrollment_idx ON enrollment(class_id, student_id)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX dropped_idx ON dropped(class_id, student_id)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX enrollment_idx_2 ON enrollment(student_id, class_id, placement)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX enrollment_idx_3 ON enrollment(class_id, placement)
+        """
+    )
+
     conn.commit()
     cursor.close()
     conn.close()
