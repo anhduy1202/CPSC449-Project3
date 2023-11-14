@@ -4,6 +4,7 @@ login_service_primary: ./bin/litefs mount -config etc/primary.yml
 login_secondary: ./bin/litefs mount -config etc/secondary.yml
 login_tertiary: ./bin/litefs mount -config etc/tertiary.yml
 # login_service: uvicorn login_service.login_service:app --host 0.0.0.0 --port $PORT --reload
+dynamodb_start: java -Djava.library.path=./dynamodb_local_latest/DynamoDBLocal_lib -jar ./dynamodb_local_latest/DynamoDBLocal.jar -sharedDb
 worker: echo ./etc/krakend.json | krakend run --config etc/krakend.json --port $PORT
 
 
