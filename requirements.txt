@@ -2,3 +2,4 @@ fastapi
 uvicorn
 pydantic
 jwcrypto==1.5.0
+boto3
