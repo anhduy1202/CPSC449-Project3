@@ -1,0 +1,325 @@
+{
+  "ModelName": "TitanOnline",
+  "ModelMetadata": {
+    "Author": "Daniel Truonog",
+    "DateCreated": "Nov 15, 2023, 12:21 AM",
+    "DateLastModified": "Nov 15, 2023, 03:52 AM",
+    "Description": "TitanOnline enrollment service database",
+    "AWSService": "Amazon DynamoDB",
+    "Version": "3.0"
+  },
+  "DataModel": [
+    {
+      "TableName": "TitanOnlineEnrollment",
+      "KeyAttributes": {
+        "PartitionKey": {
+          "AttributeName": "PK",
+          "AttributeType": "S"
+        },
+        "SortKey": {
+          "AttributeName": "SK",
+          "AttributeType": "S"
+        }
+      },
+      "NonKeyAttributes": [
+        {
+          "AttributeName": "EntityType",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Name",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Email",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "DepartmentName",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Detail",
+          "AttributeType": "M"
+        },
+        {
+          "AttributeName": "Dropped",
+          "AttributeType": "BOOL"
+        },
+        {
+          "AttributeName": "GSI1_PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI1_SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI2_PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI2_SK",
+          "AttributeType": "S"
+        }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "GSI1",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI1_PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI1_SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "GSI2",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI2_PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI2_SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        }
+      ],
+      "TableData": [
+        {
+          "PK": {
+            "S": "s#0001"
+          },
+          "SK": {
+            "S": "s#0001"
+          },
+          "EntityType": {
+            "S": "student"
+          },
+          "Name": {
+            "S": "Daniel Truong"
+          },
+          "Email": {
+            "S": "danieltruong@fullerton.edu"
+          }
+        },
+        {
+          "PK": {
+            "S": "i#0001"
+          },
+          "SK": {
+            "S": "i#0001"
+          },
+          "EntityType": {
+            "S": "instructor"
+          },
+          "Name": {
+            "S": "Dr ABC"
+          },
+          "Email": {
+            "S": "drabc@fullerton.edu"
+          }
+        },
+        {
+          "PK": {
+            "S": "d#CPSC"
+          },
+          "SK": {
+            "S": "d#CPSC"
+          },
+          "EntityType": {
+            "S": "department"
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0001"
+          },
+          "SK": {
+            "S": "c#0001"
+          },
+          "EntityType": {
+            "S": "class"
+          },
+          "Detail": {
+            "M": {
+              "CourseCode": {
+                "S": "CPSC386"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Game Programming"
+              },
+              "currentEnroll": {
+                "N": "9"
+              },
+              "maxEnroll": {
+                "N": "10"
+              },
+              "EnrollmentFroze": {
+                "BOOL": false
+              }
+            }
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0001"
+          },
+          "SK": {
+            "S": "s#0001"
+          },
+          "EntityType": {
+            "S": "enrollment"
+          },
+          "Dropped": {
+            "BOOL": false
+          },
+          "GSI1_PK": {
+            "S": "s#0001"
+          },
+          "GSI1_SK": {
+            "S": " 2023-08-15T09:30:45Z"
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0002"
+          },
+          "SK": {
+            "S": "c#0002"
+          },
+          "EntityType": {
+            "S": "class"
+          },
+          "Detail": {
+            "M": {
+              "CourseCode": {
+                "S": "CPSC449"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Backeng Engineering "
+              },
+              "currentEnroll": {
+                "N": "9"
+              },
+              "maxEnroll": {
+                "N": "10"
+              },
+              "EnrollmentFroze": {
+                "BOOL": false
+              }
+            }
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0002"
+          },
+          "SK": {
+            "S": "s#0001"
+          },
+          "EntityType": {
+            "S": "enrollment"
+          },
+          "Dropped": {
+            "BOOL": false
+          },
+          "GSI1_PK": {
+            "S": "s#0001"
+          },
+          "GSI1_SK": {
+            "S": "2023-01-01T12:00:00Z"
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0001"
+          },
+          "SK": {
+            "S": "i#0001"
+          },
+          "EntityType": {
+            "S": "instructor"
+          },
+          "GSI2_PK": {
+            "S": "i#0001"
+          },
+          "GSI2_SK": {
+            "S": "i#0001"
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0002"
+          },
+          "SK": {
+            "S": "i#0001"
+          },
+          "EntityType": {
+            "S": "instructor"
+          },
+          "GSI2_PK": {
+            "S": "i#0001"
+          },
+          "GSI2_SK": {
+            "S": "i#0001"
+          }
+        }
+      ],
+      "DataAccess": {
+        "MySql": {}
+      },
+      "SampleDataFormats": {
+        "s": [
+          "identifiers",
+          "UUID"
+        ]
+      },
+      "BillingMode": "PROVISIONED",
+      "ProvisionedCapacitySettings": {
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        },
+        "AutoScalingRead": {
+          "ScalableTargetRequest": {
+            "MinCapacity": 1,
+            "MaxCapacity": 10,
+            "ServiceRole": "AWSServiceRoleForApplicationAutoScaling_DynamoDBTable"
+          },
+          "ScalingPolicyConfiguration": {
+            "TargetValue": 70
+          }
+        },
+        "AutoScalingWrite": {
+          "ScalableTargetRequest": {
+            "MinCapacity": 1,
+            "MaxCapacity": 10,
+            "ServiceRole": "AWSServiceRoleForApplicationAutoScaling_DynamoDBTable"
+          },
+          "ScalingPolicyConfiguration": {
+            "TargetValue": 70
+          }
+        }
+      }
+    }
+  ]
+}
