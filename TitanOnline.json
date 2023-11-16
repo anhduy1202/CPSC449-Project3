@@ -3,7 +3,7 @@
   "ModelMetadata": {
     "Author": "Daniel Truonog",
     "DateCreated": "Nov 15, 2023, 12:21 AM",
-    "DateLastModified": "Nov 15, 2023, 03:52 AM",
+    "DateLastModified": "Nov 15, 2023, 11:02 PM",
     "Description": "TitanOnline enrollment service database",
     "AWSService": "Amazon DynamoDB",
     "Version": "3.0"
@@ -134,17 +134,6 @@
         },
         {
           "PK": {
-            "S": "d#CPSC"
-          },
-          "SK": {
-            "S": "d#CPSC"
-          },
-          "EntityType": {
-            "S": "department"
-          }
-        },
-        {
-          "PK": {
             "S": "c#0001"
           },
           "SK": {
@@ -155,6 +144,9 @@
           },
           "Detail": {
             "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
               "CourseCode": {
                 "S": "CPSC386"
               },
@@ -208,6 +200,9 @@
           },
           "Detail": {
             "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
               "CourseCode": {
                 "S": "CPSC449"
               },
