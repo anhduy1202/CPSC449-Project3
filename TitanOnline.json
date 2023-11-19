@@ -3,7 +3,7 @@
   "ModelMetadata": {
     "Author": "Daniel Truonog",
     "DateCreated": "Nov 15, 2023, 12:21 AM",
-    "DateLastModified": "Nov 16, 2023, 03:24 AM",
+    "DateLastModified": "Nov 18, 2023, 07:52 PM",
     "Description": "TitanOnline enrollment service database",
     "AWSService": "Amazon DynamoDB",
     "Version": "3.0"
@@ -85,18 +85,6 @@
             },
             "SortKey": {
               "AttributeName": "GSI2_SK",
-              "AttributeType": "S"
-            }
-          },
-          "Projection": {
-            "ProjectionType": "ALL"
-          }
-        },
-        {
-          "IndexName": "GSI3",
-          "KeyAttributes": {
-            "PartitionKey": {
-              "AttributeName": "GSI1_SK",
               "AttributeType": "S"
             }
           },
@@ -232,7 +220,7 @@
             "S": "i#0001"
           },
           "GSI2_SK": {
-            "S": "i#0001"
+            "S": "c#0001"
           }
         },
         {
@@ -249,7 +237,7 @@
             "S": "i#0001"
           },
           "GSI2_SK": {
-            "S": "i#0001"
+            "S": "c#0002"
           }
         },
         {
@@ -274,7 +262,7 @@
             "S": "c#0001"
           },
           "SK": {
-            "S": "s#0001"
+            "S": "s#enrolled#0001"
           },
           "EntityType": {
             "S": "enrollment"
@@ -283,7 +271,7 @@
             "S": "s#0001"
           },
           "GSI1_SK": {
-            "S": "c#0001"
+            "S": "c#enrolled#0001"
           }
         },
         {
@@ -291,19 +279,16 @@
             "S": "c#0001"
           },
           "SK": {
-            "S": "s#enrolled#002"
+            "S": "s#0002"
           },
           "EntityType": {
             "S": "enrollment"
           },
           "GSI1_PK": {
-            "S": "s#enrolled#0002"
-          },
-          "GSI2_SK": {
-            "S": "s#enrolled#002"
+            "S": "s#0002"
           },
           "GSI1_SK": {
-            "S": "c#0001"
+            "S": "c#open#0001"
           }
         },
         {
@@ -320,7 +305,24 @@
             "S": "s#0002"
           },
           "GSI1_SK": {
+            "S": "c#open#0002"
+          }
+        },
+        {
+          "PK": {
             "S": "c#0002"
+          },
+          "SK": {
+            "S": "s#0001"
+          },
+          "EntityType": {
+            "S": "enrollment"
+          },
+          "GSI1_PK": {
+            "S": "s#0001"
+          },
+          "GSI1_SK": {
+            "S": "c#open#0002"
           }
         }
       ],
