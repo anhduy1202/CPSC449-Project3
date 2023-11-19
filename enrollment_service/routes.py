@@ -1,7 +1,9 @@
 import contextlib
-import sqlite3
+import sqlite3 
+import enrollment_service.query_helper as qh
 
 from fastapi import Depends, HTTPException, APIRouter, Header, status
+import boto3
 from enrollment_service.database.schemas import Class
 
 router = APIRouter()
@@ -10,6 +12,8 @@ dropped = []
 FREEZE = False
 MAX_WAITLIST = 3
 database = "enrollment_service/database/database.db"
+dynamodb_client = boto3.client('dynamodb', endpoint_url='http://localhost:5500')
+table_name = 'TitanOnlineEnrollment'
 
 # Connect to the database
 def get_db():
@@ -36,76 +40,55 @@ def reorder_placement(cur, total_enrolled, placement, class_id):
 
 #gets available classes for a student
 @router.get("/students/{student_id}/classes", tags=['Student']) 
-def get_available_classes(student_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-    # Fetch student data from db
-    cursor.execute(
-        """
-        SELECT * FROM student
-        WHERE id = ?
-        """, (student_id,)
-    )
-    student_data = cursor.fetchone()
-    #Check if exist
+def get_available_classes(student_id: str):
+    # Check if student exists in the database
+    student_data = qh.query_student(dynamodb_client, student_id)
     if not student_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No student found")
+    class_data = qh.query_available_classes(dynamodb_client, student_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No classes found")
     # Execute the SQL query to retrieve available classes
     # If max waitlist, don't show full classes with open waitlists
-    if student_data['waitlist_count'] >= MAX_WAITLIST:
-        cursor.execute("""
-            SELECT class.id, class.name, class.course_code, class.section_number, class.current_enroll, class.max_enroll,
-                department.id AS department_id, department.name AS department_name,
-                instructor.id AS instructor_id, instructor.name AS instructor_name
-            FROM class
-            INNER JOIN department ON class.department_id = department.id
-            INNER JOIN instructor ON class.instructor_id = instructor.id
-            WHERE class.current_enroll < class.max_enroll   
-        """)
-    # Else show all open classes or full classes with open waitlists
-    else:
-        cursor.execute("""
-            SELECT class.id, class.name, class.course_code, class.section_number, class.current_enroll, class.max_enroll,
-                department.id AS department_id, department.name AS department_name,
-                instructor.id AS instructor_id, instructor.name AS instructor_name
-            FROM class
-            INNER JOIN department ON class.department_id = department.id
-            INNER JOIN instructor ON class.instructor_id = instructor.id
-            WHERE class.current_enroll < class.max_enroll + 15   
-        """)
+    # if student_data['waitlist_count'] >= MAX_WAITLIST:
+    #     cursor.execute("""
+    #         SELECT class.id, class.name, class.course_code, class.section_number, class.current_enroll, class.max_enroll,
+    #             department.id AS department_id, department.name AS department_name,
+    #             instructor.id AS instructor_id, instructor.name AS instructor_name
+    #         FROM class
+    #         INNER JOIN department ON class.department_id = department.id
+    #         INNER JOIN instructor ON class.instructor_id = instructor.id
+    #         WHERE class.current_enroll < class.max_enroll   
+    #     """)
+    # # Else show all open classes or full classes with open waitlists
+    # else:
+    #     cursor.execute("""
+    #         SELECT class.id, class.name, class.course_code, class.section_number, class.current_enroll, class.max_enroll,
+    #             department.id AS department_id, department.name AS department_name,
+    #             instructor.id AS instructor_id, instructor.name AS instructor_name
+    #         FROM class
+    #         INNER JOIN department ON class.department_id = department.id
+    #         INNER JOIN instructor ON class.instructor_id = instructor.id
+    #         WHERE class.current_enroll < class.max_enroll + 15   
+    #     """)
 
-    class_data = cursor.fetchall()
+    # class_data = cursor.fetchall()
 
     return {"Classes" : class_data}
 
 
 #gets currently enrolled classes for a student
 @router.get("/students/{student_id}/enrolled", tags=['Student'])
-def view_enrolled_classes(student_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-    
-    # Check if the student exists in the database
-    cursor.execute("SELECT * FROM student WHERE id = ?", (student_id,))
-    student_data = cursor.fetchone()
-
+def view_enrolled_classes(student_id: str):
+    # Check if student exists in the database
+    student_data = qh.query_student(dynamodb_client, student_id)
     if not student_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No student found")
+    class_data = qh.query_enrolled_classes(dynamodb_client, student_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No classes found")
 
-    # Check if the student is enrolled in any classes
-    cursor.execute("""
-        SELECT class.id, department.name AS department_name, class.course_code, class.section_number, class.name AS class_name, class.current_enroll
-            FROM enrollment
-            JOIN class ON enrollment.class_id = class.id
-            JOIN student ON enrollment.student_id = student.id
-            JOIN department ON class.department_id = department.id
-            WHERE student.id = ? AND class.current_enroll < class.max_enroll
-        """, (student_id,))
-    student_data = cursor.fetchall()
-    
-    if not student_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not enrolled in any classes")
-    
-    return {"Enrolled": student_data}
+    return {"Enrolled": class_data}
 
 
 # Enrolls a student into an available class,
