@@ -50,33 +50,17 @@ def get_available_classes(student_id: str):
     class_data = qh.query_available_classes(dynamodb_client, student_id)
     if not class_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No classes found")
-    # Execute the SQL query to retrieve available classes
-    # If max waitlist, don't show full classes with open waitlists
-    # if student_data['waitlist_count'] >= MAX_WAITLIST:
-    #     cursor.execute("""
-    #         SELECT class.id, class.name, class.course_code, class.section_number, class.current_enroll, class.max_enroll,
-    #             department.id AS department_id, department.name AS department_name,
-    #             instructor.id AS instructor_id, instructor.name AS instructor_name
-    #         FROM class
-    #         INNER JOIN department ON class.department_id = department.id
-    #         INNER JOIN instructor ON class.instructor_id = instructor.id
-    #         WHERE class.current_enroll < class.max_enroll   
-    #     """)
-    # # Else show all open classes or full classes with open waitlists
-    # else:
-    #     cursor.execute("""
-    #         SELECT class.id, class.name, class.course_code, class.section_number, class.current_enroll, class.max_enroll,
-    #             department.id AS department_id, department.name AS department_name,
-    #             instructor.id AS instructor_id, instructor.name AS instructor_name
-    #         FROM class
-    #         INNER JOIN department ON class.department_id = department.id
-    #         INNER JOIN instructor ON class.instructor_id = instructor.id
-    #         WHERE class.current_enroll < class.max_enroll + 15   
-    #     """)
+    # If watlist full, don't show full classes with open waitlists
+    filtered_class_data = []
+    for item in class_data:
+        waitlist_key = f'waitlist:{item["id"]}'
+        waitlist_length = r.llen(waitlist_key)
+        # Add the item to filtered_data only if the waitlist is not full
+        if waitlist_length < MAX_WAITLIST or r.exists(waitlist_key) == 0:
+            filtered_class_data.append(item)
+    print(filtered_class_data)
 
-    # class_data = cursor.fetchall()
-
-    return {"Classes" : class_data}
+    return {"Classes" : filtered_class_data}
 
 
 #gets currently enrolled classes for a student
@@ -97,14 +81,10 @@ def view_enrolled_classes(student_id: str):
 # or will automatically put the student on an open waitlist for a full class
 @router.post("/students/{student_id}/classes/{class_id}/enroll", tags=['Student'])
 def enroll_student_in_class(student_id: str, class_id: str, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-
     # Check if the student exists in the database
     student_data = qh.query_student(dynamodb_client, student_id)
     if not student_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No student found")
-    # cursor.execute("SELECT * FROM student WHERE id = ?", (student_id,))
-    # student_data = cursor.fetchone()
 
     # Check if the class exists in the database
     class_data = qh.query_class(dynamodb_client, class_id)
@@ -120,17 +100,23 @@ def enroll_student_in_class(student_id: str, class_id: str, db: sqlite3.Connecti
         class_ids = [item['id'] for item in enrolled_class]
         if class_id in class_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is already enrolled in this class")
-        
-    # Check if the class is full, add student to waitlist if no
-    # freeze is in place
+    
+    # TODO: check if class is frozen
+    
+    # Check if the class is full
     if class_data['currentEnroll'] >= class_data['maxEnroll']:
         print("Class is full")
         # Waitlist handling
         waitlist_key = f"waitlist:{class_id}"
-        # check if waitlist exists
+        # check if waitlist exists, add to wailist Redis with key waitlist:class_id, value s#student_id
         if not r.exists(waitlist_key):
             r.rpush(waitlist_key, f"s#{student_id}")
+            return {"message": "Student added to waitlist"}
         else:
+            # check if student is already on waitlist
+            id = f"s#{student_id}".encode('utf-8')
+            if id in r.lrange(waitlist_key, 0, -1):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is already on waitlist")
             # check if adding student to waitlist will exceed max waitlist
             if r.llen(waitlist_key) < MAX_WAITLIST:
                 r.rpush(waitlist_key, f"s#{student_id}")
