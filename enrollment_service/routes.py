@@ -1,6 +1,7 @@
 import contextlib
 import sqlite3 
 import enrollment_service.query_helper as qh
+import redis
 
 from fastapi import Depends, HTTPException, APIRouter, Header, status
 import boto3
@@ -14,6 +15,7 @@ MAX_WAITLIST = 3
 database = "enrollment_service/database/database.db"
 dynamodb_client = boto3.client('dynamodb', endpoint_url='http://localhost:5500')
 table_name = 'TitanOnlineEnrollment'
+r = redis.Redis()
 
 # Connect to the database
 def get_db():
@@ -94,67 +96,62 @@ def view_enrolled_classes(student_id: str):
 # Enrolls a student into an available class,
 # or will automatically put the student on an open waitlist for a full class
 @router.post("/students/{student_id}/classes/{class_id}/enroll", tags=['Student'])
-def enroll_student_in_class(student_id: int, class_id: int, db: sqlite3.Connection = Depends(get_db)):
+def enroll_student_in_class(student_id: str, class_id: str, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
 
     # Check if the student exists in the database
-    cursor.execute("SELECT * FROM student WHERE id = ?", (student_id,))
-    student_data = cursor.fetchone()
+    student_data = qh.query_student(dynamodb_client, student_id)
+    if not student_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No student found")
+    # cursor.execute("SELECT * FROM student WHERE id = ?", (student_id,))
+    # student_data = cursor.fetchone()
 
     # Check if the class exists in the database
-    cursor.execute("SELECT * FROM class WHERE id = ?", (class_id,))
-    class_data = cursor.fetchone()
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
 
     if not student_data or not class_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student or Class not found")
 
     # Check if student is already enrolled in the class
-    cursor.execute("""SELECT * FROM enrollment
-                    JOIN class ON enrollment.class_id = class.id
-                    WHERE class_id = ? AND student_id = ?
-                    AND class.current_enroll <= class.max_enroll
-                    """, (class_id, student_id))
-    existing_enrollment = cursor.fetchone()
-
-    if existing_enrollment:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is already enrolled in this class")
-    
+    enrolled_class = qh.query_enrolled_classes(dynamodb_client, student_id)
+    if enrolled_class:
+        class_ids = [item['id'] for item in enrolled_class]
+        if class_id in class_ids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is already enrolled in this class")
+        
     # Check if the class is full, add student to waitlist if no
     # freeze is in place
-    if class_data['current_enroll'] >= class_data['max_enroll']:
-        if not FREEZE:
-            if student_data['waitlist_count'] < MAX_WAITLIST:
-                cursor.execute("""UPDATE student 
-                                SET waitlist_count = waitlist_count + 1
-                                WHERE id = ?""",(student_id,))
-                return {"message": "Student added to the waitlist"}
-            else:
-                return {"message": "Unable to add student to waitlist due to already having max number of waitlists"}
+    if class_data['currentEnroll'] >= class_data['maxEnroll']:
+        print("Class is full")
+        # Waitlist handling
+        waitlist_key = f"waitlist:{class_id}"
+        # check if waitlist exists
+        if not r.exists(waitlist_key):
+            r.rpush(waitlist_key, f"s#{student_id}")
         else:
-            return {"message": "Unable to add student to waitlist due to administrative freeze"}
-    
-    # Increment enrollment number in the database
-    new_enrollment = class_data['current_enroll'] + 1
-    cursor.execute("UPDATE class SET current_enroll = ? WHERE id = ?", (new_enrollment, class_id))
+            # check if adding student to waitlist will exceed max waitlist
+            if r.llen(waitlist_key) < MAX_WAITLIST:
+                r.rpush(waitlist_key, f"s#{student_id}")
+                return {"message": "Student added to waitlist"}
+            else:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to add student to waitlist due to already having max number of waitlists")
 
     # Add student to enrolled class in the database
-    cursor.execute("INSERT INTO enrollment (placement, class_id, student_id) VALUES (?, ?, ?)", (new_enrollment, class_id, student_id))
-    
-    # Remove student from dropped table if valid
-    cursor.execute("""SELECT * FROM dropped 
-                    WHERE class_id = ? AND student_id = ?
-                    """, (class_id, student_id))
-    dropped_data = cursor.fetchone()
-    if dropped_data:
-        cursor.execute("""DELETE FROM dropped 
-                    WHERE class_id = ? AND student_id = ?
-                    """, (class_id, student_id))
-    
-    db.commit()
 
-    # Fetch the updated class data from the database
-    cursor.execute("SELECT * FROM class WHERE id = ?", (class_id,))
-    updated_class_data = cursor.fetchone()
+    enrolled_class = qh.update_enrolled_class(dynamodb_client, student_id, class_id)
+    if not enrolled_class:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to enroll student in class")
+    
+    # Increment enrollment number in the database
+    new_enrollment = class_data['currentEnroll'] + 1
+    update_finished = qh.update_current_enroll(dynamodb_client, class_id, new_enrollment)
+    if not update_finished:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update class enrollment")
+    
+    # Fetch the updated class data from the databas
+    updated_class_data = qh.query_class(dynamodb_client, class_id)
 
     return updated_class_data
 
