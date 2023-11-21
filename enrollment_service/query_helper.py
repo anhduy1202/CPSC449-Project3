@@ -242,3 +242,135 @@ def update_enrolled_class(dynamodb_client, student_id, class_id):
     except BaseException as error:
         print("Unknown error while putting: " + error.response['Error']['Message'])
         return False
+
+"""Query for instructor given instructor id"""
+def query_instructor(dynamodb_client, instructor_id):
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "Key": {
+            "PK": {"S":f"i#{instructor_id}"}, 
+            "SK": {"S":f"i#{instructor_id}"}
+        }
+    }
+    try:
+        response = dynamodb_client.get_item(**input)
+        # Parse data from response
+        if "Item" in response:
+            item = response['Item']
+            instructor_data = {k: deserializer.deserialize(v) for k,v in item.items()}
+            # Get rid off PK and SK from instructor_data and add id as key
+            instructor_data['id'] = item['PK']['S'].split("i#")[1]
+            instructor_data = {k: instructor_data[k] for k in instructor_data if k not in ['PK', 'SK', 'EntityType']}
+            print("Query successful.")
+        else:
+            return None
+        return instructor_data
+    except ClientError as error:
+        handle_error(error)
+    except BaseException as error:
+        print("Unknown error while querying: " + error.response['Error']['Message'])
+
+"""Query to see if the class belongs to the instructor"""
+def query_class_instructor(dynamodb_client, instructor_id, class_id):
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "KeyConditionExpression": "#cd420 = :cd420 And begins_with(#cd421, :cd421)",
+        "ExpressionAttributeNames": {"#cd420":"PK","#cd421":"SK"},
+        "ExpressionAttributeValues": {":cd420": {"S":f"c#{class_id}"},":cd421": {"S":"s#enrolled"}}    }
+    try:
+        response = dynamodb_client.query(**input)
+        # Parse data from response
+        if "Items" in response:
+            item = response['Items']
+            # student_data = {k: deserializer.deserialize(v) for k,v in item.items()}
+            print(item)
+            return True
+        else:
+            return False
+    except ClientError as error:
+        handle_error(error)
+        return False
+    except BaseException as error:
+        print("Unknown error while querying: " + error.response['Error']['Message'])
+        return False
+    
+""" Query enrolled students for a class """
+def query_enrolled_students(dynamodb_client, class_id):
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "KeyConditionExpression": "#cd420 = :cd420 And begins_with(#cd421, :cd421)",
+        "ExpressionAttributeNames": {"#cd420":"PK","#cd421":"SK"},
+        "ExpressionAttributeValues": {":cd420": {"S":f"c#{class_id}"},":cd421": {"S":"s#enrolled"}}    }
+    try:
+        response = dynamodb_client.query(**input)
+        # Parse data from response
+        items = response['Items']
+        if items:
+            formatted_response = [{'StudentId': item['GSI1_PK']} for item in items]
+            # ids = [{'id': item['PK']['S'].split("c#")[1]} for item in items]
+            student_ids = [{ k: deserializer.deserialize(v) if isinstance(v, dict) else v for k, v in item.items()} for item in formatted_response]        
+            final_response = []
+            # Get each student's info from student ids and append to final_response
+            for student_id in student_ids:
+                student_info = query_student(dynamodb_client, student_id["StudentId"].split("s#")[1])
+                final_response.append(student_info)
+            return final_response
+        else:
+            return None
+
+    except ClientError as error:
+        handle_error(error)
+    except BaseException as error:
+        print("Unknown error while querying: " + error.response['Error']['Message'])
+
+""" Query dropped students for a class """
+def query_dropped_students(dynamodb_client, class_id):
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "KeyConditionExpression": "#cd420 = :cd420 And begins_with(#cd421, :cd421)",
+        "ExpressionAttributeNames": {"#cd420":"PK","#cd421":"SK"},
+        "ExpressionAttributeValues": {":cd420": {"S":f"c#{class_id}"},":cd421": {"S":"s#dropped"}}    }
+    try:
+        response = dynamodb_client.query(**input)
+        # Parse data from response
+        items = response['Items']
+        if items:
+            formatted_response = [{'StudentId': item['GSI1_PK']} for item in items]
+            # ids = [{'id': item['PK']['S'].split("c#")[1]} for item in items]
+            student_ids = [{ k: deserializer.deserialize(v) if isinstance(v, dict) else v for k, v in item.items()} for item in formatted_response]        
+            final_response = []
+            # Get each student's info from student ids and append to final_response
+            for student_id in student_ids:
+                student_info = query_student(dynamodb_client, student_id["StudentId"].split("s#")[1])
+                final_response.append(student_info)
+            return final_response
+        else:
+            return None
+
+    except ClientError as error:
+        handle_error(error)
+    except BaseException as error:
+        print("Unknown error while querying: " + error.response['Error']['Message'])
+
+""" Freeze enrollment for a class """
+def freeze_enrollment(dynamodb_client, class_id):
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "Key": {
+            "PK": {"S":f"c#{class_id}"}, 
+            "SK": {"S":f"c#{class_id}"}
+        },
+        "UpdateExpression": "SET #b1540 = :b1540",
+        "ExpressionAttributeNames": {"#b1540":"Frozen"},
+        "ExpressionAttributeValues": {":b1540": {"BOOL": True}}
+    }
+    try:
+        response = dynamodb_client.update_item(**input)
+        print("Update successful.")
+        return True
+    except ClientError as error:
+        handle_error(error)
+        return False
+    except BaseException as error:
+        print("Unknown error while updating: " + error.response['Error']['Message'])
+        return False

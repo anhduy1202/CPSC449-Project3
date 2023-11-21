@@ -24,23 +24,10 @@ def get_db():
         yield db
 
 
-# Called when a student is dropped from a class / waiting list
-# and the enrollment place must be reordered
-def reorder_placement(cur, total_enrolled, placement, class_id):
-    counter = 1
-    while counter <= total_enrolled:
-        if counter > placement:
-            cur.execute("""UPDATE enrollment SET placement = placement - 1 
-                WHERE class_id = ? AND placement = ?""", (class_id,counter))
-        counter += 1
-    cur.execute("""UPDATE class SET current_enroll = current_enroll - 1
-                WHERE id = ?""",(class_id,))
-
-
 #==========================================students==================================================
 
 
-#gets available classes for a student
+# DONE: GET available classes for a student
 @router.get("/students/{student_id}/classes", tags=['Student']) 
 def get_available_classes(student_id: str):
     # Check if student exists in the database
@@ -55,15 +42,18 @@ def get_available_classes(student_id: str):
     for item in class_data:
         waitlist_key = f'waitlist:{item["id"]}'
         waitlist_length = r.llen(waitlist_key)
+        # If student is in the waitlist, don't show the class
+        id = f"s#{student_id}".encode('utf-8')
+        if id in r.lrange(waitlist_key, 0, -1):
+            continue
         # Add the item to filtered_data only if the waitlist is not full
         if waitlist_length < MAX_WAITLIST or r.exists(waitlist_key) == 0:
             filtered_class_data.append(item)
-    print(filtered_class_data)
 
     return {"Classes" : filtered_class_data}
 
 
-#gets currently enrolled classes for a student
+# DONE: GET currently enrolled classes for a student
 @router.get("/students/{student_id}/enrolled", tags=['Student'])
 def view_enrolled_classes(student_id: str):
     # Check if student exists in the database
@@ -76,7 +66,7 @@ def view_enrolled_classes(student_id: str):
 
     return {"Enrolled": class_data}
 
-
+# DONE
 # Enrolls a student into an available class,
 # or will automatically put the student on an open waitlist for a full class
 @router.post("/students/{student_id}/classes/{class_id}/enroll", tags=['Student'])
@@ -141,9 +131,9 @@ def enroll_student_in_class(student_id: str, class_id: str, db: sqlite3.Connecti
     # Fetch the updated class data from the databas
     updated_class_data = qh.query_class(dynamodb_client, class_id)
 
-    return updated_class_data
+    return updated_class_data["Detail"]
 
-
+# TODO
 # Have a student drop a class they're enrolled in
 @router.delete("/students/classes/{class_id}", tags=['Students drop their own classes'])
 def drop_student_from_class(class_id: int, student_id: int = Header(None, alias="x-cwid"), db: sqlite3.Connection = Depends(get_db)):
@@ -191,212 +181,121 @@ def drop_student_from_class(class_id: int, student_id: int = Header(None, alias=
 #==========================================wait list========================================== 
 
 
-# Get all classes with waiting lists
-@router.get("/waitlist/classes", tags=['Waitlist'])
-def view_all_class_waitlists(db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()  
-
-    # fetch all relevant waitlist information for student
-    cursor.execute("""
-        SELECT class.id AS class_id, department.id AS department_id, class.course_code, 
-        class.section_number, class.name AS class_name, instructor.id AS instructor_id,
-        class.current_enroll - class.max_enroll AS waitlist_total
-        FROM class
-        JOIN department ON class.department_id = department.id
-        JOIN instructor ON class.instructor_id = instructor.id
-        WHERE class.current_enroll > class.max_enroll
-        """
-    )
-    waitlist_data = cursor.fetchall()
-    # Check if exist
-    if not waitlist_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No classes have waitlists")
-
-    return {"Waitlists": waitlist_data}
-
-
-# Get all waiting lists for a student
-@router.get("/waitlist/students/{student_id}", tags=['Waitlist'])
-def view_waiting_list(student_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-
-    # Retrieve waitlist entries for the specified student from the database
-    cursor.execute("SELECT waitlist_count FROM student WHERE id = ? AND waitlist_count > 0", (student_id,))
-    waitlist_data = cursor.fetchall()
-
-    # Check if exist
-    if not waitlist_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is not on a waitlist")  
-
-    # fetch all relevant waitlist information for student
-    cursor.execute("""
-        SELECT class.id, department.name AS department_name, class.course_code, 
-        class.section_number, class.name AS class_name, instructor.name AS instructor_name,
-        enrollment.placement - class.max_enroll AS waitlist_placement
-        FROM enrollment
-        JOIN class ON enrollment.class_id = class.id
-        JOIN student ON enrollment.student_id = student.id
-        JOIN department ON class.department_id = department.id
-        JOIN instructor ON class.instructor_id = instructor.id
-        WHERE student.id = ? AND class.current_enroll > class.max_enroll
-        """, (student_id,)
-    )
-    waitlist_data = cursor.fetchall()
-
-    return {"Waitlists": waitlist_data}
-
-
-# remove a student from a waiting list
-@router.put("/waitlist/students/{student_id}/classes/{class_id}/drop", tags=['Waitlist'])
-def remove_from_waitlist(student_id: int, class_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-    
-    # check if exist
-    cursor.execute("SELECT * FROM student WHERE id = ?", (student_id,))
-    student_data = cursor.fetchone()
-
-    cursor.execute("SELECT * FROM class WHERE id = ?", (class_id,))
-    class_data = cursor.fetchone()
-
-    if not student_data or not class_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student or Class not found")
-    
-    cursor.execute("SELECT * FROM student WHERE id = ? AND waitlist_count > 0", (student_id,))
-    student_data = cursor.fetchone()
-
+# DONE: Get wait list position for a student in a class
+@router.get("/students/{student_id}/waitlist/{class_id}", tags=['Waitlist'])
+def view_waiting_list(student_id: str, class_id: str):
+    # check if student exists in the database
+    student_data = qh.query_student(dynamodb_client, student_id)
     if not student_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is not on the waitlist")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No student found")
+    # check if class exists in the database
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
+    waitlist_key = f"waitlist:{class_id}"
+    if not r.exists(waitlist_key):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waitlist found")
+    waitlist_data = r.lrange(waitlist_key, 0, -1)
+    if not waitlist_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waitlist found")
+    # Check if student is on waitlist
+    id = f"s#{student_id}".encode('utf-8')
+    if id not in waitlist_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student is not on waitlist")
+    # Get student's position on waitlist
+    position = waitlist_data.index(id) + 1
+    return {"Waitlist Position": position}
 
-    cursor.execute("""SELECT enrollment.placement, class.current_enroll
-                    FROM enrollment 
-                    JOIN class ON enrollment.class_id = class.id
-                    WHERE student_id = ? AND class_id = ?
-                    AND enrollment.placement > class.max_enroll
-                    """, (student_id, class_id))
-    waitlist_entry = cursor.fetchone()
-
-    if waitlist_entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student is not on the waiting list for this class")
-
-    # Delete student from waitlist enrollment
-    cursor.execute("DELETE FROM enrollment WHERE student_id = ? AND class_id = ?", (student_id, class_id))
-    cursor.execute("""UPDATE student SET waitlist_count = waitlist_count - 1
-                    WHERE id = ?""", (student_id,))
-    
-    # Reorder enrollment placements
-    reorder_placement(cursor, waitlist_entry['current_enroll'], waitlist_entry['placement'], class_id)
-    db.commit()
-
+# DONE: remove a student from a waiting list
+@router.delete("/students/{student_id}/waitlist/{class_id}", tags=['Waitlist'])
+def remove_from_waitlist(student_id: str, class_id: str):
+    # check if student exists in the database
+    student_data = qh.query_student(dynamodb_client, student_id)
+    if not student_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No student found")
+    # check if class exists in the database
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
+    waitlist_key = f"waitlist:{class_id}"
+    if not r.exists(waitlist_key):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waitlist found")
+    waitlist_data = r.lrange(waitlist_key, 0, -1)
+    if not waitlist_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waitlist found")
+    # Check if student is on waitlist
+    id = f"s#{student_id}".encode('utf-8')
+    if id not in waitlist_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student is not on waitlist")
+    # Remove student from waitlist
+    r.lrem(waitlist_key, 0, id)
     return {"message": "Student removed from the waiting list"}
 
-# Get a list of students on a waitlist for a particular class that
-# a specific instructor teaches
-@router.get("/waitlist/instructors/{instructor_id}/classes/{class_id}",tags=['Waitlist'])
-def view_current_waitlist(instructor_id: int, class_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-
-   # check if exist
-    cursor.execute("SELECT * FROM instructor WHERE id = ?", (instructor_id,))
-    instructor_data = cursor.fetchone()
-
-    cursor.execute("SELECT * FROM class WHERE id = ?", (class_id,))
-    class_data = cursor.fetchone()
-
-    if not instructor_data or not class_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instructor or Class not found")  
-
-    # fetch all relevant waitlist information for instructor
-    cursor.execute("""
-        SELECT class.id AS class_id, department.name AS department_name, class.course_code, 
-        class.section_number, class.name AS class_name, enrollment.student_id AS student_id, 
-        enrollment.placement - class.max_enroll AS waitlist_placement
-        FROM enrollment
-        JOIN class ON enrollment.class_id = class.id
-        JOIN department ON class.department_id = department.id
-        JOIN instructor ON class.instructor_id = instructor.id
-        WHERE instructor.id = ? AND class.current_enroll > class.max_enroll
-        AND enrollment.placement > class.max_enroll
-        """, (instructor_id,)
-    )
-    waitlist_data = cursor.fetchall()
-
-    #Check if exist
+# DONE: Get waitlist for a class
+@router.get("/classes/{class_id}/waitlist",tags=['Waitlist'])
+def view_current_waitlist(class_id: str):
+    # Check if class exist
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
+    waitlist_key = f"waitlist:{class_id}"
+    if not r.exists(waitlist_key):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waitlist found")
+    waitlist_data = r.lrange(waitlist_key, 0, -1)
     if not waitlist_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Class does not have a waitlist")
-
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waitlist found")
+    # remove s# from waitlist_data
+    waitlist_data = [item.decode('utf-8')[2:] for item in waitlist_data]
     return {"Waitlist": waitlist_data}
 
 
 #==========================================Instructor==================================================
 
 
-#view current enrollment for class
+# DONE: view current enrollment for class
 @router.get("/instructors/{instructor_id}/classes/{class_id}/enrollment", tags=['Instructor'])
-def get_instructor_enrollment(instructor_id: int, class_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
+def get_instructor_enrollment(instructor_id: str, class_id: str):
+    # check if instructor exists in the database
+    instructor_data = qh.query_instructor(dynamodb_client, instructor_id)
+    if not instructor_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No instructor found")
+    # check if class exists in the database
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
+    # check if instructor is assigned to class
+    class_instructor = qh.query_class_instructor(dynamodb_client, instructor_id, class_id)
+    if not class_instructor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instructor is not assigned to this class")
+    # get enrollment data
+    enrollment_data = qh.query_enrolled_students(dynamodb_client, class_id)
+    if not enrollment_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No enrollment found")
+    return {"Enrollment": enrollment_data}
 
-    #check if exist
-    cursor.execute("SELECT * FROM instructor WHERE id = ?", (instructor_id,))
-    instructor_data = cursor.fetchone()
-
-    cursor.execute("SELECT * FROM class WHERE id = ?", (class_id,))
-    class_data = cursor.fetchone()
-
-    if not instructor_data or not class_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instructor and/or class not found")
-
-    cursor.execute("SELECT * FROM class WHERE id = ? AND instructor_id = ?", (class_id,instructor_id))
-    assigned_data = cursor.fetchone()
-
-    if not assigned_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Instructor not assigned to Class")
-
-    #Fetch relavent data for instructor
-    cursor.execute("""SELECT class.id AS class_id, class.name AS class_name, department.name AS department_name,
-                    class.course_code, class.section_number, class.max_enroll,
-                    student.id AS student_id, student.name AS student_name, enrollment.placement
-                    FROM enrollment 
-                    JOIN class ON enrollment.class_id = class.id
-                    JOIN student ON enrollment.student_id = student.id
-                    JOIN department ON class.department_id = department.id
-                    JOIN instructor ON class.instructor_id = instructor.id
-                    WHERE class.instructor_id = ? AND enrollment.class_id = ? 
-                    AND enrollment.placement <= class.max_enroll""", (instructor_id, class_id))
-    enrolled_data = cursor.fetchall()
-
-    return {"Enrolled" : enrolled_data}
-
-
-#view students who have dropped the class
+# DONE: view students who have dropped the class
 @router.get("/instructors/{instructor_id}/classes/{class_id}/drop", tags=['Instructor'])
-def get_instructor_dropped(instructor_id: int, class_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-
-    #Check if exist
-    cursor.execute("SELECT * FROM instructor WHERE id = ?", (instructor_id,))
-    instructor_data = cursor.fetchone()
-    cursor.execute("SELECT * FROM class WHERE id = ?", (class_id,))
-    class_data = cursor.fetchone()
-
-    if not instructor_data or not class_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instructor and/or class not found")
-
-    cursor.execute("SELECT * FROM class WHERE id = ? AND instructor_id = ?", (class_id,instructor_id))
-    assigned_data = cursor.fetchone()
-
-    if not assigned_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Instructor not assigned to Class")
+def get_instructor_dropped(instructor_id: str, class_id: str):
+    # check if instructor exists in the database
+    instructor_data = qh.query_instructor(dynamodb_client, instructor_id)
+    if not instructor_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No instructor found")
+    # check if class exists in the database
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
+    # check if instructor is assigned to class
+    class_instructor = qh.query_class_instructor(dynamodb_client, instructor_id, class_id)
+    if not class_instructor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instructor is not assigned to this class")
+    # get dropped data
+    dropped_data = qh.query_dropped_students(dynamodb_client, class_id)
+    if not dropped_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No dropped found")
     
-    cursor.execute("""SELECT student.id AS student_id, student.name AS student_name
-                        FROM dropped 
-                        JOIN student ON dropped.student_id = student.id
-                        WHERE dropped.class_id = ?""", (class_id,))
-    dropped_data = cursor.fetchall()
-    
-    return dropped_data
+    return {"Dropped": dropped_data}
 
-
-#Instructor administratively drop students
+# TODO: Instructor administratively drop students
 @router.post("/instructors/{instructor_id}/classes/{class_id}/students/{student_id}/drop", tags=['Instructor'])
 def instructor_drop_class(instructor_id: int, class_id: int, student_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
@@ -450,7 +349,7 @@ def instructor_drop_class(instructor_id: int, class_id: int, student_id: int, db
 #==========================================registrar==================================================
 
 
-# Create a new class
+# TODO: Create a new class
 @router.post("/registrar/classes/", response_model=Class, tags=['Registrar'])
 def create_class(class_data: Class, db: sqlite3.Connection = Depends(get_db)):
     try:
@@ -478,7 +377,7 @@ def create_class(class_data: Class, db: sqlite3.Connection = Depends(get_db)):
             detail={"type": type(e).__name__, "msg": str(e)}
         )
 
-# Remove a class
+# TODO: Remove a class
 @router.delete("/registrar/classes/{class_id}", tags=['Registrar'])
 def remove_class(class_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
@@ -497,7 +396,7 @@ def remove_class(class_id: int, db: sqlite3.Connection = Depends(get_db)):
     return {"message": "Class removed successfully"}
 
 
-# Change the assigned instructor for a class
+# TODO: Change the assigned instructor for a class
 @router.put("/registrar/classes/{class_id}/instructors/{instructor_id}", tags=['Registrar'])
 def change_instructor(class_id: int, instructor_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
@@ -520,13 +419,19 @@ def change_instructor(class_id: int, instructor_id: int, db: sqlite3.Connection 
     return {"message": "Instructor changed successfully"}
 
 
-# Freeze enrollment for classes
-@router.put("/registrar/automatic-enrollment/freeze", tags=['Registrar'])
-def freeze_automatic_enrollment():
-    global FREEZE
-    if FREEZE:
-        FREEZE = False
-        return {"message": "Automatic enrollment unfrozen successfully"}
-    else:
-        FREEZE = True
-        return {"message": "Automatic enrollment frozen successfully"}
+# DONE: Freeze enrollment for classes
+@router.put("/registrar/classes/{class_id}/freeze", tags=['Registrar'])
+def freeze_automatic_enrollment(class_id: str):
+    # Check if class exists in the database
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
+    # Check if class is already frozen
+    if class_data['Frozen']:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Class is already frozen")
+    # Freeze the class
+    freeze_finished = qh.freeze_enrollment(dynamodb_client, class_id)
+    if not freeze_finished:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to freeze enrollment")
+    # return success message
+    return {"message": "Enrollment frozen"}
