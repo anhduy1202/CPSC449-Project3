@@ -3,7 +3,7 @@
   "ModelMetadata": {
     "Author": "Daniel Truonog",
     "DateCreated": "Nov 15, 2023, 12:21 AM",
-    "DateLastModified": "Nov 18, 2023, 07:52 PM",
+    "DateLastModified": "Nov 20, 2023, 10:27 PM",
     "Description": "TitanOnline enrollment service database",
     "AWSService": "Amazon DynamoDB",
     "Version": "3.0"
@@ -57,6 +57,18 @@
         {
           "AttributeName": "GSI1_SK",
           "AttributeType": "S"
+        },
+        {
+          "AttributeName": "currentEnroll",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "maxEnroll",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "Frozen",
+          "AttributeType": "BOOL"
         }
       ],
       "GlobalSecondaryIndexes": [
@@ -151,20 +163,20 @@
               },
               "Name": {
                 "S": "Game Programming"
-              },
-              "currentEnroll": {
-                "N": "9"
-              },
-              "maxEnroll": {
-                "N": "10"
-              },
-              "EnrollmentFroze": {
-                "BOOL": false
               }
             }
           },
           "GSI1_PK": {
             "S": "c#0001"
+          },
+          "currentEnroll": {
+            "N": "10"
+          },
+          "maxEnroll": {
+            "N": "10"
+          },
+          "Frozen": {
+            "BOOL": false
           }
         },
         {
@@ -190,20 +202,20 @@
               },
               "Name": {
                 "S": "Backeng Engineering "
-              },
-              "currentEnroll": {
-                "N": "9"
-              },
-              "maxEnroll": {
-                "N": "10"
-              },
-              "EnrollmentFroze": {
-                "BOOL": false
               }
             }
           },
           "GSI1_PK": {
             "S": "c#0002"
+          },
+          "currentEnroll": {
+            "N": "9"
+          },
+          "maxEnroll": {
+            "N": "10"
+          },
+          "Frozen": {
+            "BOOL": true
           }
         },
         {
@@ -267,6 +279,22 @@
           "EntityType": {
             "S": "enrollment"
           },
+          "Detail": {
+            "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
+              "CourseCode": {
+                "S": "CPSC386"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Game Programming"
+              }
+            }
+          },
           "GSI1_PK": {
             "S": "s#0001"
           },
@@ -283,6 +311,22 @@
           },
           "EntityType": {
             "S": "enrollment"
+          },
+          "Detail": {
+            "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
+              "CourseCode": {
+                "S": "CPSC386"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Game Programming"
+              }
+            }
           },
           "GSI1_PK": {
             "S": "s#0002"
@@ -301,6 +345,22 @@
           "EntityType": {
             "S": "enrollment"
           },
+          "Detail": {
+            "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
+              "CourseCode": {
+                "S": "CPSC449"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Backeng Engineering "
+              }
+            }
+          },
           "GSI1_PK": {
             "S": "s#0002"
           },
@@ -317,6 +377,22 @@
           },
           "EntityType": {
             "S": "enrollment"
+          },
+          "Detail": {
+            "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
+              "CourseCode": {
+                "S": "CPSC449"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Backeng Engineering "
+              }
+            }
           },
           "GSI1_PK": {
             "S": "s#0001"
