@@ -101,7 +101,9 @@ def enroll_student_in_class(student_id: str, class_id: str, db: sqlite3.Connecti
         if class_id in class_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student is already enrolled in this class")
     
-    # TODO: check if class is frozen
+    # Check if class is frozen
+    if class_data['Frozen']:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enrollment is frozen")
     
     # Check if the class is full
     if class_data['currentEnroll'] >= class_data['maxEnroll']:
