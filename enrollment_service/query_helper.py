@@ -127,6 +127,42 @@ def query_student(dynamodb_client, student_id):
     except BaseException as error:
         print("Unknown error while querying: " + error.response['Error']['Message'])
 
+""" Query for student given student ids using batch_get_item """
+def batch_query_student(dynamodb_client, student_ids):
+    input = {
+        "RequestItems": {
+            "TitanOnlineEnrollment": {
+                "Keys": [{"PK": {"S":f"{student_id}"}, "SK": {"S":f"{student_id}"}} for student_id in student_ids]
+            }
+        }
+    }
+    try:
+        response = dynamodb_client.batch_get_item(**input)
+        # Parse data from response
+        if "Responses" in response:
+            items = response['Responses']['TitanOnlineEnrollment']
+            ids = [{'id': item['PK']['S'].split("s#")[1]} for item in items]
+            print(ids)
+            student_infos = [{ k: deserializer.deserialize(v) if isinstance(v, dict) else v for k, v in item.items()} for item in items]        
+            final_response = []
+            # Format response
+            for item in student_infos:
+                # append ids from id, remove SK, EntityType, and PK
+                item.update(ids[student_infos.index(item)])
+                item.pop('SK', None)
+                item.pop('EntityType', None)
+                item.pop('PK', None)
+                final_response.append(item)
+            print("Query successful.")
+        else:
+            return None
+        return final_response
+    
+    except ClientError as error:
+        handle_error(error)
+    except BaseException as error:
+        print("Unknown error while querying: " + error.response['Error']['Message'])
+
 """Query for class given class id"""
 def query_class(dynamodb_client, class_id):
     input = {
@@ -309,12 +345,11 @@ def query_enrolled_students(dynamodb_client, class_id):
             formatted_response = [{'StudentId': item['GSI1_PK']} for item in items]
             # ids = [{'id': item['PK']['S'].split("c#")[1]} for item in items]
             student_ids = [{ k: deserializer.deserialize(v) if isinstance(v, dict) else v for k, v in item.items()} for item in formatted_response]        
-            final_response = []
+            # Create list of student ids from student_ids
+            student_ids = [student_id["StudentId"] for student_id in student_ids]
             # Get each student's info from student ids and append to final_response
-            for student_id in student_ids:
-                student_info = query_student(dynamodb_client, student_id["StudentId"].split("s#")[1])
-                final_response.append(student_info)
-            return final_response
+            student_info = batch_query_student(dynamodb_client, student_ids)
+            return student_info
         else:
             return None
 
@@ -338,12 +373,11 @@ def query_dropped_students(dynamodb_client, class_id):
             formatted_response = [{'StudentId': item['GSI1_PK']} for item in items]
             # ids = [{'id': item['PK']['S'].split("c#")[1]} for item in items]
             student_ids = [{ k: deserializer.deserialize(v) if isinstance(v, dict) else v for k, v in item.items()} for item in formatted_response]        
-            final_response = []
+            # Create list of student ids from student_ids
+            student_ids = [student_id["StudentId"] for student_id in student_ids]
             # Get each student's info from student ids and append to final_response
-            for student_id in student_ids:
-                student_info = query_student(dynamodb_client, student_id["StudentId"].split("s#")[1])
-                final_response.append(student_info)
-            return final_response
+            student_info = batch_query_student(dynamodb_client, student_ids)
+            return student_info
         else:
             return None
 
