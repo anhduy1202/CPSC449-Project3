@@ -20,7 +20,7 @@ class Class(BaseModel):
     instructor_id: int
 
 class Student(BaseModel):
-    id: int
+    id: str
     name: str
     dropped_classes: List[Class] = [] 
 
