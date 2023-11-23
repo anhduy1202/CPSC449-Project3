@@ -33,6 +33,7 @@ def handle_error(error):
 
 """Query for available classes given student id"""
 def query_available_classes(dynamodb_client, student_id):
+    final_response = []
     input = {
         "TableName": "TitanOnlineEnrollment",
         "IndexName": "GSI1",
@@ -165,30 +166,32 @@ def batch_query_student(dynamodb_client, student_ids):
 
 """Query for class given class id"""
 def query_class(dynamodb_client, class_id):
+    class_data = {}
     input = {
         "TableName": "TitanOnlineEnrollment",
-        "Key": {
-            "PK": {"S":f"c#{class_id}"}, 
-            "SK": {"S":f"c#{class_id}"}
-        }
+        "IndexName": "GSI3",
+        "KeyConditionExpression": "#e55c0 = :e55c0 And begins_with(#e55c1, :e55c1)",
+        "ExpressionAttributeNames": {"#e55c0":"GSI3_PK","#e55c1":"GSI3_SK"},
+        "ExpressionAttributeValues": {":e55c0": {"S":f"c#{class_id}"},":e55c1": {"S":"i#"}}
     }
     try:
-        response = dynamodb_client.get_item(**input)
+        response = dynamodb_client.query(**input)
         # Parse data from response
-        if "Item" in response:
-            item = response['Item']
-            class_data = {k: deserializer.deserialize(v) for k,v in item.items()}
+        if "Items" in response:
+            item = response['Items']
+            class_data = {k: deserializer.deserialize(v) for k,v in item[0].items()}
             # Get rid off PK and SK from class_data and add id as key
-            class_data['id'] = item['PK']['S'].split("c#")[1]
+            class_data['id'] = item[0]['PK']['S'].split("c#")[1]
+            class_data['instructorId'] = item[0]['GSI3_SK']['S'].split("i#")[1]
             class_data = {k: class_data[k] for k in class_data if k not in ['PK', 'SK', 'EntityType']}
             print("Query successful.")
         else:
             return None
-        return class_data
     except ClientError as error:
         handle_error(error)
     except BaseException as error:
         print("Unknown error while querying: " + error.response['Error']['Message'])
+    return class_data
 
 """Update currentEnroll for a class"""
 def update_current_enroll(dynamodb_client, class_id, new_enroll):
@@ -407,4 +410,116 @@ def freeze_enrollment(dynamodb_client, class_id):
         return False
     except BaseException as error:
         print("Unknown error while updating: " + error.response['Error']['Message'])
+        return False
+    
+### Drop student from class
+def drop_student_from_class(dynamodb_client, class_id, student_id):
+    # delete PK of c#class_id and SK of s#enrolled#student_id if exists
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "Key": {
+            "PK": {"S":f"c#{class_id}"}, 
+            "SK": {"S":f"s#enrolled#{student_id}"}
+        }
+    }
+    try:
+        response = dynamodb_client.delete_item(**input)
+        print("Delete successful.")
+    except ClientError as error:
+        handle_error(error)
+        return False
+    except BaseException as error:
+        print("Unknown error while deleting: " + error.response['Error']['Message'])
+        return False
+    
+
+    # add new entry of c#class_id and s#dropped#student_id with GSI1_PK as s#student_id and GSI1_SK as c#open#class_id
+    class_detail = query_class(dynamodb_client, class_id)
+    serialized_class_detail = {k: serializer.serialize(v) for k,v in class_detail.items()}
+    print(serialized_class_detail)
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "Item": {
+            "PK": {"S":f"c#{class_id}"}, 
+            "SK": {"S":f"s#dropped#{student_id}"},
+            "GSI1_PK": {"S":f"s#{student_id}"},
+            "GSI1_SK": {"S":f"c#open#{class_id}"},
+            "EntityType": {"S":"enrollment"},
+            "Detail": serialized_class_detail['Detail']
+        }
+    }
+
+    try:
+        response = dynamodb_client.put_item(**input)
+        print("Put successful.")
+        return True
+    except ClientError as error:
+        handle_error(error)
+        return False
+    except BaseException as error:
+        print("Unknown error while putting: " + error.response['Error']['Message'])
+        return False
+
+
+def change_instructor(dynamodb_client, class_id, instructor_id):
+    ## Get current instructor id for class
+    class_detail = query_class(dynamodb_client, class_id)
+    current_instructor_id = class_detail['instructorId']
+    ## Delete entry of class_id and curent_instructor_id
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "Key": {
+            "PK": {"S":f"c#{class_id}"}, 
+            "SK": {"S":f"i#{current_instructor_id}"}
+        }
+    }
+    try:
+        response = dynamodb_client.delete_item(**input)
+        print("Delete successful.")
+    except ClientError as error:
+        handle_error(error)
+        return False
+    except BaseException as error:
+        print("Unknown error while deleting: " + error.response['Error']['Message'])
+        return False
+    ## Update GSI3_SK with PK c#class_id SK class_id to instructor_id
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "Key": {
+            "PK": {"S":f"c#{class_id}"}, 
+            "SK": {"S":f"c#{class_id}"}
+        },
+        "UpdateExpression": "SET #cd421 = :cd421",
+        "ExpressionAttributeNames": {"#cd421":"GSI3_SK"},
+        "ExpressionAttributeValues": {":cd421": {"S":f"i#{instructor_id}"}}
+    }
+    try:
+        response = dynamodb_client.update_item(**input)
+        print("Update successful.")
+    except ClientError as error:
+        handle_error(error)
+        return False
+    except BaseException as error:
+        print("Unknown error while updating: " + error.response['Error']['Message'])
+        return False
+    ## Add new entry of class_id and instructor_id with EntityType as instructor and GSI2_PK as i#instructor_id and GSI2_SK as c#class_id
+    input = {
+        "TableName": "TitanOnlineEnrollment",
+        "Item": {
+            "PK": {"S":f"c#{class_id}"}, 
+            "SK": {"S":f"i#{instructor_id}"},
+            "GSI2_PK": {"S":f"i#{instructor_id}"},
+            "GSI2_SK": {"S":f"c#{class_id}"},
+            "EntityType": {"S":"instructor"}
+        }
+    }
+    try:
+        response = dynamodb_client.put_item(**input)
+        print("Put successful.")
+        return True
+    except ClientError as error:
+        handle_error(error)
+        return False
+    except BaseException as error:
+        print("Unknown error while putting: " + error.response['Error']['Message'])
         return False

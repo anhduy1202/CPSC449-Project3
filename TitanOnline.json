@@ -3,7 +3,7 @@
   "ModelMetadata": {
     "Author": "Daniel Truonog",
     "DateCreated": "Nov 15, 2023, 12:21 AM",
-    "DateLastModified": "Nov 20, 2023, 10:27 PM",
+    "DateLastModified": "Nov 22, 2023, 02:53 AM",
     "Description": "TitanOnline enrollment service database",
     "AWSService": "Amazon DynamoDB",
     "Version": "3.0"
@@ -69,6 +69,14 @@
         {
           "AttributeName": "Frozen",
           "AttributeType": "BOOL"
+        },
+        {
+          "AttributeName": "GSI3_PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI3_SK",
+          "AttributeType": "S"
         }
       ],
       "GlobalSecondaryIndexes": [
@@ -97,6 +105,22 @@
             },
             "SortKey": {
               "AttributeName": "GSI2_SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "GSI3",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI3_PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI3_SK",
               "AttributeType": "S"
             }
           },
@@ -166,9 +190,6 @@
               }
             }
           },
-          "GSI1_PK": {
-            "S": "c#0001"
-          },
           "currentEnroll": {
             "N": "10"
           },
@@ -177,6 +198,12 @@
           },
           "Frozen": {
             "BOOL": false
+          },
+          "GSI3_PK": {
+            "S": "c#0001"
+          },
+          "GSI3_SK": {
+            "S": "i#0001"
           }
         },
         {
@@ -205,9 +232,6 @@
               }
             }
           },
-          "GSI1_PK": {
-            "S": "c#0002"
-          },
           "currentEnroll": {
             "N": "9"
           },
@@ -215,7 +239,13 @@
             "N": "10"
           },
           "Frozen": {
-            "BOOL": true
+            "BOOL": false
+          },
+          "GSI3_PK": {
+            "S": "c#0002"
+          },
+          "GSI3_SK": {
+            "S": "i#0001"
           }
         },
         {
@@ -399,6 +429,106 @@
           },
           "GSI1_SK": {
             "S": "c#open#0002"
+          }
+        },
+        {
+          "PK": {
+            "S": "s#0003"
+          },
+          "SK": {
+            "S": "s#0003"
+          },
+          "EntityType": {
+            "S": "student"
+          },
+          "Name": {
+            "S": "Student Three"
+          },
+          "Email": {
+            "S": "stu3@fullerton.edu"
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0001"
+          },
+          "SK": {
+            "S": "s#0003"
+          },
+          "EntityType": {
+            "S": "enrollment"
+          },
+          "Detail": {
+            "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
+              "CourseCode": {
+                "S": "CPSC386"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Game Programming"
+              }
+            }
+          },
+          "GSI1_PK": {
+            "S": "s#0003"
+          },
+          "GSI1_SK": {
+            "S": "c#open#0001"
+          }
+        },
+        {
+          "PK": {
+            "S": "c#0002"
+          },
+          "SK": {
+            "S": "s#0003"
+          },
+          "EntityType": {
+            "S": "enrollment"
+          },
+          "Detail": {
+            "M": {
+              "Department": {
+                "S": "Computer Science"
+              },
+              "CourseCode": {
+                "S": "CPSC449"
+              },
+              "SectionNumber": {
+                "S": "1"
+              },
+              "Name": {
+                "S": "Backeng Engineering "
+              }
+            }
+          },
+          "GSI1_PK": {
+            "S": "s#0003"
+          },
+          "GSI1_SK": {
+            "S": "c#open#0002"
+          }
+        },
+        {
+          "PK": {
+            "S": "i#0002"
+          },
+          "SK": {
+            "S": "i#0002"
+          },
+          "EntityType": {
+            "S": "instructor"
+          },
+          "Name": {
+            "S": "Dr Tuffy"
+          },
+          "Email": {
+            "S": "drtuffy@fullerton.edu"
           }
         }
       ],
