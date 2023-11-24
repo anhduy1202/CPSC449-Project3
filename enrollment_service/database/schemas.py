@@ -10,14 +10,13 @@ class Instructor(BaseModel):
     name: str
 
 class Class(BaseModel):
-    id: int
-    name: str
-    course_code: str
-    section_number: int
-    current_enroll: int
-    max_enroll: int
-    department_id: int
-    instructor_id: int
+    Name: str
+    Department: str
+    CourseCode: str
+    SectionNumber: str
+    maxEnroll: int
+    InstructorId: str
+
 
 class Student(BaseModel):
     id: str

@@ -1,5 +1,4 @@
 import contextlib
-import sqlite3 
 import enrollment_service.query_helper as qh
 import redis
 
@@ -16,12 +15,6 @@ database = "enrollment_service/database/database.db"
 dynamodb_client = boto3.client('dynamodb', endpoint_url='http://localhost:5500')
 table_name = 'TitanOnlineEnrollment'
 r = redis.Redis()
-
-# Connect to the database
-def get_db():
-    with contextlib.closing(sqlite3.connect(database, check_same_thread=False)) as db:
-        db.row_factory = sqlite3.Row
-        yield db
 
 
 #==========================================students==================================================
@@ -70,7 +63,7 @@ def view_enrolled_classes(student_id: str):
 # Enrolls a student into an available class,
 # or will automatically put the student on an open waitlist for a full class
 @router.post("/students/{student_id}/classes/{class_id}/enroll", tags=['Student'], summary="Enroll in a class")
-def enroll_student_in_class(student_id: str, class_id: str, db: sqlite3.Connection = Depends(get_db)):
+def enroll_student_in_class(student_id: str, class_id: str):
     # Check if the student exists in the database
     student_data = qh.query_student(dynamodb_client, student_id)
     if not student_data:
@@ -80,9 +73,6 @@ def enroll_student_in_class(student_id: str, class_id: str, db: sqlite3.Connecti
     class_data = qh.query_class(dynamodb_client, class_id)
     if not class_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
-
-    if not student_data or not class_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student or Class not found")
 
     # Check if student is already enrolled in the class
     enrolled_class = qh.query_enrolled_classes(dynamodb_client, student_id)
@@ -281,7 +271,7 @@ def get_instructor_enrollment(instructor_id: str, class_id: str):
     return {"Enrollment": enrollment_data}
 
 # DONE: view students who have dropped the class
-@router.get("/instructors/{instructor_id}/classes/{class_id}/drop", tags=['Instructor'])
+@router.get("/instructors/{instructor_id}/classes/{class_id}/drop", tags=['Instructor'], summary="Get students who dropped the class")
 def get_instructor_dropped(instructor_id: str, class_id: str):
     # check if instructor exists in the database
     instructor_data = qh.query_instructor(dynamodb_client, instructor_id)
@@ -364,54 +354,31 @@ def instructor_drop_class(instructor_id: str, class_id: str, student_id: str):
 #==========================================registrar==================================================
 
 
-# TODO: Create a new class
-@router.post("/registrar/classes/", response_model=Class, tags=['Registrar'])
-def create_class(class_data: Class, db: sqlite3.Connection = Depends(get_db)):
-    try:
-        db.execute(
-            """
-            INSERT INTO class (id, name, course_code, section_number, current_enroll, max_enroll, department_id, instructor_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                class_data.id,
-                class_data.name,
-                class_data.course_code,
-                class_data.section_number,
-                class_data.current_enroll,
-                class_data.max_enroll,
-                class_data.department_id,
-                class_data.instructor_id
-            )
-        )
-        db.commit()
-        return class_data
-    except sqlite3.IntegrityError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"type": type(e).__name__, "msg": str(e)}
-        )
+# DONE: Create a new class
+@router.post("/registrar/classes/", tags=['Registrar'])
+def create_class(class_data: Class):
+    # Check instructor exists in the database
+    instructor_data = qh.query_instructor(dynamodb_client, class_data.InstructorId)
+    if not instructor_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No instructor found")
+    class_created = qh.create_class(dynamodb_client, class_data)
+    if not class_created:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to create class")
+    return {"message": "Class created successfully"}
 
-# TODO: Remove a class
+# DONE: Remove a class
 @router.delete("/registrar/classes/{class_id}", tags=['Registrar'])
-def remove_class(class_id: int, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-
-    # Check if the class exists in the database
-    cursor.execute("SELECT * FROM class WHERE id = ?", (class_id,))
-    target_class_data = cursor.fetchone()
-
-    if not target_class_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Class not found")
-
-    # Delete the class from the database
-    cursor.execute("DELETE FROM class WHERE id = ?", (class_id,))
-    db.commit()
-
+def remove_class(class_id: str):
+    # Check if class exists in the database
+    class_data = qh.query_class(dynamodb_client, class_id)
+    if not class_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No class found")
+    removed_class = qh.delete_class(dynamodb_client, class_id)
+    if not removed_class:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to remove class")
     return {"message": "Class removed successfully"}
 
-
-# TODO: Change the assigned instructor for a class
+# DONE: Change the assigned instructor for a class
 @router.put("/registrar/classes/{class_id}/instructors/{instructor_id}", tags=['Registrar'])
 def change_instructor(class_id: str, instructor_id: str):
     # Check if class exists in the database
