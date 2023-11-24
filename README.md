@@ -7,8 +7,8 @@ run `sh ./bin/install.sh`.
 
 ## How to run
 - Make sure you have the `dynamodb_local_latest/` folder at the root of the directory to run DynamoDB local, [Download it here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html)
-- (Download DynamoDB NoSQL Workbench)[https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/workbench.settingup.html]
-- Import `TitanOnline.json` to NoSQL Workbench to seed the data to DynamoDB Local
+- [Download DynamoDB NoSQL Workbench](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/workbench.settingup.html)
+- Import [`TitanOnline.json`](./TitanOnline.json) to NoSQL Workbench to seed the data to DynamoDB Local
 - run `sh run.sh` to start the services
 - run `sh ./bin/create-user-db.sh` to create user database
 
