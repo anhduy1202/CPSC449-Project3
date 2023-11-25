@@ -3,7 +3,9 @@
 
 
 ## Installation
-run `sh ./bin/install.sh`.
+- run `sh ./bin/install.sh`.
+- Activate python venv `python -m venv venv/ && source venv/bin/activate`
+- Install required packages `pip install -r requirements.txt`
 
 ## How to run
 - Make sure you have the `dynamodb_local_latest/` folder at the root of the directory to run DynamoDB local, [Download it here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html)
