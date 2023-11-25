@@ -241,8 +241,9 @@ def view_current_waitlist(class_id: str):
     waitlist_data = r.lrange(waitlist_key, 0, -1)
     if not waitlist_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waitlist found")
-    # remove s# from waitlist_data
-    waitlist_data = [item.decode('utf-8')[2:] for item in waitlist_data]
+    waitlist_data = [item.decode('utf-8') for item in waitlist_data]
+    # Get student info from waitlist_data
+    waitlist_data = qh.batch_query_student(dynamodb_client, waitlist_data)
     return {"Waitlist": waitlist_data}
 
 
