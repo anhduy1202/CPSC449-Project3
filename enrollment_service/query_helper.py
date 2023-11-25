@@ -492,7 +492,7 @@ def freeze_enrollment(dynamodb_client, class_id):
         return False
     
 ### Drop student from class
-def drop_student_from_class(dynamodb_client, class_id, student_id):
+def drop_student_from_class(dynamodb_client, student_id, class_id):
     # delete PK of c#class_id and SK of s#enrolled#student_id if exists
     input = {
         "TableName": "TitanOnlineEnrollment",
@@ -514,6 +514,7 @@ def drop_student_from_class(dynamodb_client, class_id, student_id):
 
     # add new entry of c#class_id and s#dropped#student_id with GSI1_PK as s#student_id and GSI1_SK as c#open#class_id
     class_detail = query_class(dynamodb_client, class_id)
+    print("Detail:", class_detail)
     serialized_class_detail = {k: serializer.serialize(v) for k,v in class_detail.items()}
     print(serialized_class_detail)
     input = {
