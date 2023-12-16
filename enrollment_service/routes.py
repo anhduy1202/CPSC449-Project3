@@ -89,7 +89,6 @@ def enroll_student_in_class(student_id: str, class_id: str):
     
     # Check if the class is full
     if class_data['currentEnroll'] >= class_data['maxEnroll']:
-        print("Class is full")
         # Waitlist handling
         waitlist_key = f"waitlist:{class_id}"
         # check if waitlist exists, add to wailist Redis with key waitlist:class_id, value s#student_id
