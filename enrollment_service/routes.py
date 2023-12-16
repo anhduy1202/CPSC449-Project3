@@ -1,12 +1,13 @@
 import contextlib
 import enrollment_service.query_helper as qh
 import redis
+import json
 
 from fastapi import Depends, HTTPException, APIRouter, Header, status
 import boto3
 from enrollment_service.database.schemas import Class
 from rabbitmq.publisher import Publisher
-
+from enrollment_notification_service import redis_query as notification_service_helper
 
 router = APIRouter()
 dropped = []
@@ -167,7 +168,15 @@ def drop_student_from_class(student_id: str, class_id: str):
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to enroll student in class")
             
             # after successfull enrollment send student notification if needed
-            publisher.publish(f'{first_student_id}->{class_id}')
+            subscription_email, subscription_webhook_url = \
+                notification_service_helper.get_subscription(first_student_id, class_id, r)
+            data = {
+                'student_id': first_student_id,
+                'class_id': class_id,
+                'email': subscription_email,
+                'webhook_url': subscription_webhook_url
+            }
+            publisher.publish(json.dumps(data))
             
             # Increment enrollment number in the database
             new_enrollment = class_data['currentEnroll'] + 1
