@@ -5,6 +5,8 @@ import redis
 from fastapi import Depends, HTTPException, APIRouter, Header, status
 import boto3
 from enrollment_service.database.schemas import Class
+from rabbitmq.publisher import Publisher
+
 
 router = APIRouter()
 dropped = []
@@ -15,7 +17,7 @@ database = "enrollment_service/database/database.db"
 dynamodb_client = boto3.client('dynamodb', endpoint_url='http://localhost:5600')
 table_name = 'TitanOnlineEnrollment'
 r = redis.Redis()
-
+publisher = Publisher()
 
 #==========================================students==================================================
 
@@ -158,10 +160,16 @@ def drop_student_from_class(student_id: str, class_id: str):
             # first student on waitlist is automatically enrolled
             waitlist_data = r.lrange(f"waitlist:{class_id}", 0, 0)
             waitlist_data = [item.decode('utf-8')[2:] for item in waitlist_data]
+
             # Enroll student in class
-            enrolled_class = qh.update_enrolled_class(dynamodb_client, waitlist_data[0], class_id)
+            first_student_id = waitlist_data[0]
+            enrolled_class = qh.update_enrolled_class(dynamodb_client, first_student_id, class_id)
             if not enrolled_class:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to enroll student in class")
+            
+            # after successfull enrollment send student notification if needed
+            publisher.publish(f'{first_student_id}->{class_id}')
+            
             # Increment enrollment number in the database
             new_enrollment = class_data['currentEnroll'] + 1
             update_finished = qh.update_current_enroll(dynamodb_client, class_id, new_enrollment)
