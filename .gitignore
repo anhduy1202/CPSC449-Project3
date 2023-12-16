@@ -1,5 +1,6 @@
 dynamodb_local_latest/
 dynamodb-local-metadata.json
+/var/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

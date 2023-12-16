@@ -1,16 +1,28 @@
 import contextlib
-import enrollment_service.query_helper as qh
-import redis
+import datetime
 
-from fastapi import Depends, HTTPException, APIRouter, Header, status
+
+from fastapi import Depends, HTTPException, APIRouter, Header, status, Response
+import redis
 import boto3
+
+
 from enrollment_service.database.schemas import Class
+import enrollment_service.query_helper as qh
+
 
 router = APIRouter()
 dropped = []
 
+
+def udpate_last_modified():
+    return datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+
 FREEZE = False
 MAX_WAITLIST = 3
+waitilist_last_modified = update_last_modified()
+
 database = "enrollment_service/database/database.db"
 dynamodb_client = boto3.client('dynamodb', endpoint_url='http://localhost:5500')
 table_name = 'TitanOnlineEnrollment'
@@ -93,6 +105,7 @@ def enroll_student_in_class(student_id: str, class_id: str):
         # check if waitlist exists, add to wailist Redis with key waitlist:class_id, value s#student_id
         if not r.exists(waitlist_key):
             r.rpush(waitlist_key, f"s#{student_id}")
+            last_modified = update_last_modified()
             return {"message": "Student added to waitlist"}
         else:
             # check if student is already on waitlist
@@ -102,6 +115,7 @@ def enroll_student_in_class(student_id: str, class_id: str):
             # check if adding student to waitlist will exceed max waitlist
             if r.llen(waitlist_key) < MAX_WAITLIST:
                 r.rpush(waitlist_key, f"s#{student_id}")
+                last_modified = update_last_modified()
                 return {"message": "Student added to waitlist"}
             else:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to add student to waitlist due to already having max number of waitlists")
@@ -169,6 +183,7 @@ def drop_student_from_class(student_id: str, class_id: str):
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update class enrollment")
             # Remove student from waitlist
             r.lrem(f"waitlist:{class_id}", 0, f"s#{waitlist_data[0]}")
+            last_modified = update_last_modified()
             # Fetch the updated class data from the databas
             updated_class_data = qh.query_class(dynamodb_client, class_id)
             return {"message": "Student dropped from class and first student on waitlist enrolled", "Class": updated_class_data["Detail"]}
@@ -180,7 +195,9 @@ def drop_student_from_class(student_id: str, class_id: str):
 
 # DONE: Get wait list position for a student in a class
 @router.get("/students/{student_id}/waitlist/{class_id}", tags=['Waitlist'], summary="Get waitlist position for a student in a class")
-def view_waiting_list(student_id: str, class_id: str):
+def view_waiting_list(student_id: str, class_id: str, response: Response):
+    response.headers['Last-Modified'] = last_modified
+
     # check if student exists in the database
     student_data = qh.query_student(dynamodb_client, student_id)
     if not student_data:
@@ -226,6 +243,7 @@ def remove_from_waitlist(student_id: str, class_id: str):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student is not on waitlist")
     # Remove student from waitlist
     r.lrem(waitlist_key, 0, id)
+    last_modified = update_last_modified()
     return {"message": "Student removed from the waiting list"}
 
 # DONE: Get waitlist for a class
@@ -346,6 +364,7 @@ def instructor_drop_class(instructor_id: str, class_id: str, student_id: str):
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update class enrollment")
             # Remove student from waitlist
             r.lrem(f"waitlist:{class_id}", 0, f"s#{waitlist_data[0]}")
+            last_modified = update_last_modified()
             # Fetch the updated class data from the databas
             updated_class_data = qh.query_class(dynamodb_client, class_id)
             return {"message": "Student dropped from class and first student on waitlist enrolled", "Class": updated_class_data["Detail"]}
