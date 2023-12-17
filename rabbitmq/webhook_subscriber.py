@@ -1,4 +1,6 @@
 import pika
+import httpx
+import json
 
 class WebhookSubscriber:
     def __init__(self):
@@ -24,10 +26,15 @@ class WebhookSubscriber:
             exit(0)
 
 
-    def send_post_webhook(self, ch, method, properties, url):
-        print(f'sending post request to {url}...')
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-
+    def send_post_webhook(self, ch, method, properties, message):
+        try:
+            data = json.loads(message)
+            response = httpx.post(data['webhook_url'], data=data)
+            
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        except Exception as e:
+            print(f'error calling post: {e}')
+            ch.basic_nack(delivery_tag=method.delivery_tag)
     
 if __name__ == '__main__':
     subscriber = WebhookSubscriber()

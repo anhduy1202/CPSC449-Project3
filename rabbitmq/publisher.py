@@ -22,4 +22,4 @@ class Publisher:
 
 if __name__ == '__main__':
     publisher = Publisher()
-    publisher.publish('{"student_id": "0001", "class_id": "0001", "email": "user1@example.com", "webhook_url": "https://example1.com/"}')
+    publisher.publish('{"student_id": "0001", "class_id": "0001", "email": "user1@example.com", "webhook_url": "https://smee.io/Icab78jUVluC9vmC"}')
