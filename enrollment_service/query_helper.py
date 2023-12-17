@@ -58,7 +58,6 @@ def query_available_classes(dynamodb_client, student_id):
                 # append ids from id to item['Detail']
                 item['Detail'].update(ids[python_data.index(item)])
                 final_response.append(item['Detail'])
-            print("Query successful.")
         else:
             return None
     except ClientError as error:
@@ -83,7 +82,6 @@ def query_available_classes(dynamodb_client, student_id):
                 class_id = item[0]['GSI3_PK']['S'].split("c#")[1]
                 instructor_uid = item[0]['GSI3_SK']['S'].split("i#")[1]
                 instructor_id[class_id] = instructor_uid
-                print("Query successful.")
             else:
                 return None
         except ClientError as error:
@@ -121,7 +119,6 @@ def query_enrolled_classes(dynamodb_client, student_id):
                 # append ids from id to item['Detail']
                 item['Detail'].update(ids[python_data.index(item)])
                 final_response.append(item['Detail'])
-            print("Query successful.")
         else:
             return None
 
@@ -151,7 +148,6 @@ def query_student(dynamodb_client, student_id):
             # Get rid off PK and SK from student_data and add id as key
             student_data['id'] = item['PK']['S'].split("s#")[1]
             student_data = {k: student_data[k] for k in student_data if k not in ['PK', 'SK', 'EntityType']}
-            print("Query successful.")
         else:
             return None
         return student_data
@@ -175,7 +171,6 @@ def batch_query_student(dynamodb_client, student_ids):
         if "Responses" in response:
             items = response['Responses']['TitanOnlineEnrollment']
             ids = [{'id': item['PK']['S'].split("s#")[1]} for item in items]
-            print(ids)
             student_infos = [{ k: deserializer.deserialize(v) if isinstance(v, dict) else v for k, v in item.items()} for item in items]        
             final_response = []
             # Format response
@@ -186,7 +181,6 @@ def batch_query_student(dynamodb_client, student_ids):
                 item.pop('EntityType', None)
                 item.pop('PK', None)
                 final_response.append(item)
-            print("Query successful.")
         else:
             return None
         return final_response
@@ -216,7 +210,7 @@ def query_class(dynamodb_client, class_id):
             class_data['id'] = item[0]['PK']['S'].split("#")[-1]
             class_data['instructorId'] = item[0]['GSI3_SK']['S'].split("i#")[1]
             class_data = {k: class_data[k] for k in class_data if k not in ['PK', 'SK', 'EntityType']}
-            print("Query successful.")
+            
         else:
             return None
     except ClientError as error:
@@ -240,7 +234,6 @@ def check_class_exists(dynamodb_client, class_id):
         response = dynamodb_client.get_item(**input)
         # Parse data from response
         if "Item" in response:
-            print("Query successful.")
             return True
         else:
             return False
@@ -263,7 +256,6 @@ def update_current_enroll(dynamodb_client, class_id, new_enroll):
     }
     try:
         response = dynamodb_client.update_item(**input)
-        print("Update successful.")
         return True
     except ClientError as error:
         handle_error(error)
@@ -284,7 +276,6 @@ def update_enrolled_class(dynamodb_client, student_id, class_id):
     }
     try:
         response = dynamodb_client.delete_item(**input)
-        print("Delete successful.")
     except ClientError as error:
         handle_error(error)
         return False
@@ -301,7 +292,6 @@ def update_enrolled_class(dynamodb_client, student_id, class_id):
 }
     try:
         response = dynamodb_client.delete_item(**input)
-        print("Delete successful.")
     except ClientError as error:
         handle_error(error)
         return False
@@ -313,7 +303,6 @@ def update_enrolled_class(dynamodb_client, student_id, class_id):
     # add new entry of c#class_id and s#enrolled#student_id with GSI1_PK as s#student_id and GSI1_SK as c#enrolled#class_id
     class_detail = query_class(dynamodb_client, class_id)
     serialized_class_detail = {k: serializer.serialize(v) for k,v in class_detail.items()}
-    print(serialized_class_detail)
     input = {
         "TableName": "TitanOnlineEnrollment",
         "Item": {
@@ -328,8 +317,6 @@ def update_enrolled_class(dynamodb_client, student_id, class_id):
 
     try:
         response = dynamodb_client.put_item(**input)
-        print("Put successful.")
-        print(response)
         return True
     except ClientError as error:
         handle_error(error)
@@ -356,7 +343,7 @@ def query_instructor(dynamodb_client, instructor_id):
             # Get rid off PK and SK from instructor_data and add id as key
             instructor_data['id'] = item['PK']['S'].split("i#")[1]
             instructor_data = {k: instructor_data[k] for k in instructor_data if k not in ['PK', 'SK', 'EntityType']}
-            print("Query successful.")
+            
         else:
             return None
         return instructor_data
@@ -482,7 +469,6 @@ def freeze_enrollment(dynamodb_client, class_id):
     }
     try:
         response = dynamodb_client.update_item(**input)
-        print("Update successful.")
         return True
     except ClientError as error:
         handle_error(error)
@@ -503,7 +489,6 @@ def drop_student_from_class(dynamodb_client, student_id, class_id):
     }
     try:
         response = dynamodb_client.delete_item(**input)
-        print("Delete successful.")
     except ClientError as error:
         handle_error(error)
         return False
@@ -514,9 +499,7 @@ def drop_student_from_class(dynamodb_client, student_id, class_id):
 
     # add new entry of c#class_id and s#dropped#student_id with GSI1_PK as s#student_id and GSI1_SK as c#open#class_id
     class_detail = query_class(dynamodb_client, class_id)
-    print("Detail:", class_detail)
     serialized_class_detail = {k: serializer.serialize(v) for k,v in class_detail.items()}
-    print(serialized_class_detail)
     input = {
         "TableName": "TitanOnlineEnrollment",
         "Item": {
@@ -531,7 +514,6 @@ def drop_student_from_class(dynamodb_client, student_id, class_id):
 
     try:
         response = dynamodb_client.put_item(**input)
-        print("Put successful.")
         return True
     except ClientError as error:
         handle_error(error)
@@ -555,7 +537,7 @@ def change_instructor(dynamodb_client, class_id, instructor_id):
     }
     try:
         response = dynamodb_client.delete_item(**input)
-        print("Delete successful.")
+        
     except ClientError as error:
         handle_error(error)
         return False
@@ -575,7 +557,7 @@ def change_instructor(dynamodb_client, class_id, instructor_id):
     }
     try:
         response = dynamodb_client.update_item(**input)
-        print("Update successful.")
+        
     except ClientError as error:
         handle_error(error)
         return False
@@ -595,7 +577,6 @@ def change_instructor(dynamodb_client, class_id, instructor_id):
     }
     try:
         response = dynamodb_client.put_item(**input)
-        print("Put successful.")
         return True
     except ClientError as error:
         handle_error(error)
@@ -607,7 +588,6 @@ def change_instructor(dynamodb_client, class_id, instructor_id):
 
 """ Create class """
 def create_class(dynamodb_client, class_detail):
-    print(class_detail)
     serialized_class_detail = {k: serializer.serialize(v) for k,v in class_detail}
     # Remove maxEnroll, instructorId  from serialized_class_detail and store in filtered_class_detail
     filtered_class_detail = {k: serialized_class_detail[k] for k in serialized_class_detail if k not in ['maxEnroll', 'InstructorId']}
@@ -631,7 +611,6 @@ def create_class(dynamodb_client, class_detail):
     }
     try:
         response = dynamodb_client.put_item(**input)
-        print("Put successful.")
     except ClientError as error:
         handle_error(error)
         return False
@@ -652,7 +631,6 @@ def create_class(dynamodb_client, class_detail):
     }
     try:
         response = dynamodb_client.put_item(**input)
-        print("Put successful.")
     except ClientError as error:
         handle_error(error)
         return False
@@ -675,7 +653,7 @@ def create_class(dynamodb_client, class_detail):
         items = response['Items']
         if items:
             available_class_id = items[0]['GSI1_SK']['S'].split("#")[-1]
-            print("Query successful.")
+            
         else:
             return None
 
@@ -684,7 +662,6 @@ def create_class(dynamodb_client, class_detail):
     except BaseException as error:
         print("Unknown error while querying: " + error.response['Error']['Message'])
 
-    print("Available class id: " + available_class_id)
 
     """Get all student ids from available_class_id"""
     input = {
@@ -700,7 +677,6 @@ def create_class(dynamodb_client, class_detail):
         items = response['Items']
         if items:
             formatted_response = [{'StudentId': item['GSI1_PK']} for item in items]
-            print("Formatted response: " + str(formatted_response))
             # ids = [{'id': item['PK']['S'].split("c#")[1]} for item in items]
             student_ids = [{ k: deserializer.deserialize(v) if isinstance(v, dict) else v for k, v in item.items()} for item in formatted_response]        
             # Create list of student ids from student_ids
@@ -714,7 +690,6 @@ def create_class(dynamodb_client, class_detail):
 
     ### Batch add student from student_ids to class with EntityType as enrollment and GSI1_PK as s#student_id and GSI1_SK as c#open#class_id
     ### Also add class to student with EntityType as enrollment and GSI1_PK as c#class_id and GSI1_SK as s#student_id
-    print(student_ids)
     for student_id in student_ids:
         input = {
             "TableName": "TitanOnlineEnrollment",
@@ -727,10 +702,8 @@ def create_class(dynamodb_client, class_detail):
                 "EntityType": {"S":"enrollment"}
             }
         }
-        print(input)
         try:
             response = dynamodb_client.put_item(**input)
-            print("Put successful.")
         except ClientError as error:
             handle_error(error)
             return False
@@ -756,7 +729,6 @@ def delete_class(dynamodb_client, class_id):
     }
     try:
         response = dynamodb_client.delete_item(**input)
-        print("Delete successful.")
     except ClientError as error:
         handle_error(error)
         return False
@@ -773,7 +745,7 @@ def delete_class(dynamodb_client, class_id):
     }
     try:
         response = dynamodb_client.delete_item(**input)
-        print("Delete successful.")
+        
     except ClientError as error:
         handle_error(error)
         return False
@@ -791,7 +763,6 @@ def delete_class(dynamodb_client, class_id):
         }
         try:
             response = dynamodb_client.delete_item(**input)
-            print("Delete successful.")
         except ClientError as error:
             handle_error(error)
             return False

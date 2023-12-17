@@ -8,5 +8,9 @@ login_tertiary: ./bin/litefs mount -config etc/tertiary.yml
 worker: echo ./etc/krakend.json | krakend run --config etc/krakend.json --port $PORT
 dynamodb: java -Djava.library.path=./dynamodb_local_latest/DynamoDBLocal_lib -jar ./dynamodb_local_latest/DynamoDBLocal.jar -sharedDb --port $PORT
 
+smtp_local: python -u -m aiosmtpd -n -d
+notification_service_email_subscriber: python -u rabbitmq/email_subscriber.py
+notification_service_webhook_subscriber: python -u rabbitmq/webhook_subscriber.py
+
 #use the below command to run foreman with 3 instances for enrollment service 
 #foreman start -m enrollment_service=3,login_service_primary=1,login_secondary=1,login_tertiary=1,worker=1

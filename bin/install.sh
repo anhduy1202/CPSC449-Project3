@@ -32,6 +32,12 @@ sudo apt install -y python3-pip
 # Install required libaries for the project
 pip3 install -r requirements.txt
 
+# Install redis 
+sudo apt install --yes redis-server
+
+# Install RabbitMQ
+sudo apt install --yes rabbitmq-server
+
 # Print 'Installation Successful'
 echo "\n\n"
 echo "*****************************************"
