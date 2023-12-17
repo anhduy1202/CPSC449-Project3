@@ -1,8 +1,6 @@
 import base64
 import hashlib
 import secrets
-import os
-import sys
 import json
 import datetime
 
@@ -20,6 +18,7 @@ def hash_password(password, salt=None, iterations=260000):
         "sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations
     )
     b64_hash = base64.b64encode(pw_hash).decode("ascii").strip()
+
     return "{}${}${}${}".format(ALGORITHM, iterations, salt, b64_hash)
 
 
@@ -30,7 +29,9 @@ def verify_password(password, password_hash):
     iterations = int(iterations)
     assert algorithm == ALGORITHM
     compare_hash = hash_password(password, salt, iterations)
+
     return secrets.compare_digest(password_hash, compare_hash)
+
 
 def expiration_in(minutes):
     creation = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -57,8 +58,8 @@ def generate_claims(username, user_id, roles):
 
     output = json.dumps(token, indent=4)
     claim_json = json.loads(output)
-    print (claim_json)
-    return claim_json   
+
+    return claim_json
 
 
 def generate_keys(key_ids):
@@ -69,4 +70,5 @@ def generate_keys(key_ids):
     keys_as_json = [json.loads(exported_key) for exported_key in exported_keys]
     jwks = {"keys": keys_as_json}
     output = json.dumps(jwks, indent=4)
+
     print(output)
