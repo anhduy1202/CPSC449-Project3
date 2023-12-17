@@ -12,11 +12,12 @@ class EmailSubscriber:
 
         self.channel.exchange_declare(exchange='notification_service', exchange_type='fanout')
 
-        result = self.channel.queue_declare(queue='', exclusive=True, durable=True)
+        result = self.channel.queue_declare(queue='email', durable=True)
         queue_name = result.method.queue
 
         self.channel.queue_bind(exchange='notification_service', queue=queue_name)
 
+        self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue=queue_name, on_message_callback=self.send_email)
 
 
@@ -43,6 +44,7 @@ class EmailSubscriber:
             email['From'] =  FROM
             email['To'] = decoded['email']
 
+            print('sending email to ', decoded['email'])
             server.sendmail(FROM, [decoded['email']], email.as_string())
 
             ch.basic_ack(delivery_tag=method.delivery_tag)

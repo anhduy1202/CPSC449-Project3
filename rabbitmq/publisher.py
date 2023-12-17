@@ -17,7 +17,7 @@ class Publisher:
             )
         )
 
-    def __del__(self):
+    def close(self):
         self.connection.close()
 
 if __name__ == '__main__':
