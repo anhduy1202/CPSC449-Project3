@@ -1,8 +1,13 @@
-from fastapi import Depends, HTTPException, APIRouter, Header, status, Request, Response
-import redis
+import json
 import boto3
 
 
+import redis
+from fastapi import Depends, HTTPException, APIRouter, Header, status, Request, Response
+from rabbitmq.publisher import Publisher
+
+
+from enrollment_notification_service import redis_query as notification_service_helper
 from enrollment_service.database.schemas import Class
 import enrollment_service.query_helper as qh
 from enrollment_service.utils import (
@@ -20,10 +25,10 @@ MAX_WAITLIST = 3
 
 
 database = "enrollment_service/database/database.db"
-dynamodb_client = boto3.client("dynamodb", endpoint_url="http://localhost:5500")
-table_name = "TitanOnlineEnrollment"
+dynamodb_client = boto3.client('dynamodb', endpoint_url='http://localhost:5600')
+table_name = 'TitanOnlineEnrollment'
 r = redis.Redis()
-
+publisher = Publisher()
 
 # ==========================================students==================================================
 
@@ -116,8 +121,7 @@ def enroll_student_in_class(student_id: str, class_id: str):
         )
 
     # Check if the class is full
-    if class_data["currentEnroll"] >= class_data["maxEnroll"]:
-        print("Class is full")
+    if class_data['currentEnroll'] >= class_data['maxEnroll']:
         # Waitlist handling
         waitlist_key = f"waitlist:{class_id}"
         # check if waitlist exists, add to wailist Redis with key waitlist:class_id, value s#student_id
@@ -227,16 +231,25 @@ def drop_student_from_class(student_id: str, class_id: str):
         if r.exists(f"waitlist:{class_id}"):
             # first student on waitlist is automatically enrolled
             waitlist_data = r.lrange(f"waitlist:{class_id}", 0, 0)
-            waitlist_data = [item.decode("utf-8")[2:] for item in waitlist_data]
+            waitlist_data = [item.decode('utf-8')[2:] for item in waitlist_data]
+
             # Enroll student in class
-            enrolled_class = qh.update_enrolled_class(
-                dynamodb_client, waitlist_data[0], class_id
-            )
+            first_student_id = waitlist_data[0]
+            enrolled_class = qh.update_enrolled_class(dynamodb_client, first_student_id, class_id)
             if not enrolled_class:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Unable to enroll student in class",
-                )
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to enroll student in class")
+            
+            # after successfull enrollment send student notification if needed
+            subscription_email, subscription_webhook_url = \
+                notification_service_helper.get_subscription(first_student_id, class_id, r)
+            data = {
+                'student_id': first_student_id,
+                'class_id': class_id,
+                'email': subscription_email,
+                'webhook_url': subscription_webhook_url
+            }
+            publisher.publish(json.dumps(data))
+            
             # Increment enrollment number in the database
             new_enrollment = class_data["currentEnroll"] + 1
             update_finished = qh.update_current_enroll(

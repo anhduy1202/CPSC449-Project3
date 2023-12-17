@@ -68,3 +68,19 @@ def list_subscriptions(student_id: str, redis_client: Redis):
     except Exception as e:
         raise RedisQueryException(QueryStatus.LIST_SUBSCRIPTION_FAILED) from e
     return subscription_courses
+    
+def get_subscription(student_id:str, class_id: str, redis_client: Redis):
+    key = f'student_id:{student_id}|course_code:{class_id}'
+    
+    try:
+        email = redis_client.hget(key, 'email')
+        webhook_url = redis_client.hget(key, 'webhook_url')
+
+        if email: email = email.decode('utf-8')
+        if webhook_url: webhook_url = webhook_url.decode('utf-8')
+
+        return (email, webhook_url)
+    
+    except Exception as e:
+        raise RedisQueryException(QueryStatus.LIST_SUBSCRIPTION_FAILED) from e
+    
